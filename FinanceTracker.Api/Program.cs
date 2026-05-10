@@ -6,7 +6,7 @@ using FinanceTracker.Api.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ────────────────────────────────────────────────────────
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -26,8 +26,14 @@ builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// ── API / Controllers ───────────────────────────────────────────────
+// ── API / Controllers & Singletons ──────────────────────────────────
 builder.Services.AddSingleton<FinanceTracker.Api.Models.Interfaces.IFinanceModelFactory, FinanceTracker.Api.Models.Factories.FinanceModelFactory>();
+
+// ── API / Infrastruktur (DAO Singleton Factory) ─────────────────────
+builder.Services.AddSingleton<FinanceTracker.Api.DAOs.Factories.IDaoFactory, FinanceTracker.Api.DAOs.Factories.DaoFactory>();
+
+// ── API / Domain (Repository Singleton Factory) ─────────────────────
+builder.Services.AddSingleton<FinanceTracker.Api.Repositories.Factories.IRepositoryFactory, FinanceTracker.Api.Repositories.Factories.RepositoryFactory>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
