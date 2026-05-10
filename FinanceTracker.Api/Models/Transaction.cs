@@ -10,6 +10,8 @@ namespace FinanceTracker.Api.Models;
 /// </summary>
 public class Transaction : ITransaction
 {
+    internal Transaction() { }
+
     public Guid Id { get; set; }
 
     [Required]

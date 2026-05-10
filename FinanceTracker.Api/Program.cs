@@ -27,6 +27,7 @@ builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
 .AddDefaultTokenProviders();
 
 // ── API / Controllers ───────────────────────────────────────────────
+builder.Services.AddSingleton<FinanceTracker.Api.Models.Interfaces.IFinanceModelFactory, FinanceTracker.Api.Models.Factories.FinanceModelFactory>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 

@@ -10,6 +10,8 @@ namespace FinanceTracker.Api.Models;
 /// </summary>
 public class Category : ICategory
 {
+    internal Category() { }
+
     public int Id { get; set; }
 
     [Required]

@@ -10,6 +10,8 @@ namespace FinanceTracker.Api.Models;
 /// </summary>
 public class User : IdentityUser<Guid>, IUser
 {
+    internal User() { }
+
     [Required]
     [MaxLength(100)]
     public string FirstName { get; set; } = string.Empty;
