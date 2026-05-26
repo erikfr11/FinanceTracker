@@ -7,8 +7,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ────────────────────────────────────────────────────────
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
+{
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+        builder.Configuration.GetConnectionString("DefaultConnection"));
+
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging();   // SQL mit Parameterwerten loggen
+        options.EnableDetailedErrors();
+    }
+});
 
 // ── ASP.NET Core Identity ───────────────────────────────────────────
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
