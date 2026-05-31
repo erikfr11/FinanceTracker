@@ -19,7 +19,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 });
 
 // ── ASP.NET Core Identity ───────────────────────────────────────────
-builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
+builder.Services.AddIdentityApiEndpoints<User>(options =>
 {
     // Password policy
     options.Password.RequireDigit = true;
@@ -31,6 +31,7 @@ builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
     // User settings
     options.User.RequireUniqueEmail = true;
 })
+.AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
@@ -67,5 +68,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapIdentityApi<User>();
 
 app.Run();

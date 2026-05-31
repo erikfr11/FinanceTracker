@@ -20,6 +20,14 @@ public class User : IdentityUser<Guid>, IUser
     [MaxLength(100)]
     public string LastName { get; set; } = string.Empty;
 
+    public string PreferredCurrency { get; set; } = "EUR";
+    
+    public bool IsPremiumUser { get; set; } = false;
+    
+    public string Locale { get; set; } = "de-DE";
+    
+    public string? AvatarUrl { get; set; }
+
     /// <summary>
     /// All transactions created by this user.
     /// </summary>

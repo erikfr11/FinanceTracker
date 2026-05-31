@@ -12,7 +12,7 @@ public interface IFinanceModelFactory
     /// <summary>
     /// Creates a new User instance.
     /// </summary>
-    User CreateUser(string email, string firstName, string lastName, string? userName = null);
+    User CreateUser(string email, string firstName, string lastName, string? userName = null, string preferredCurrency = "EUR", string locale = "de-DE", bool isPremiumUser = false, string? avatarUrl = null);
 
     /// <summary>
     /// Creates a new Category instance.

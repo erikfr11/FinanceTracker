@@ -9,14 +9,18 @@ namespace FinanceTracker.Api.Models.Factories;
 /// </summary>
 public class FinanceModelFactory : IFinanceModelFactory
 {
-    public User CreateUser(string email, string firstName, string lastName, string? userName = null)
+    public User CreateUser(string email, string firstName, string lastName, string? userName = null, string preferredCurrency = "EUR", string locale = "de-DE", bool isPremiumUser = false, string? avatarUrl = null)
     {
         var user = new User
         {
             Email = email,
             UserName = userName ?? email,
             FirstName = firstName,
-            LastName = lastName
+            LastName = lastName,
+            PreferredCurrency = preferredCurrency,
+            Locale = locale,
+            IsPremiumUser = isPremiumUser,
+            AvatarUrl = avatarUrl
         };
 
         if (!user.IsValid())
