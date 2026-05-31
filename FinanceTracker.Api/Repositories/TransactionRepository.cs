@@ -22,14 +22,19 @@ public class TransactionRepository : ITransactionRepository
         return await _transactionDao.GetByIdAsync(id);
     }
 
-    public async Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId)
+    public async Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, int? categoryId = null, string? type = null)
     {
-        return await _transactionDao.GetByUserIdAsync(userId);
+        return await _transactionDao.GetByUserIdAsync(userId, startDate, endDate, categoryId, type);
     }
 
     public async Task<Transaction> AddAsync(Transaction transaction)
     {
         return await _transactionDao.AddAsync(transaction);
+    }
+
+    public async Task AddRangeAsync(IEnumerable<Transaction> transactions)
+    {
+        await _transactionDao.AddRangeAsync(transactions);
     }
 
     public async Task UpdateAsync(Transaction transaction)
@@ -40,5 +45,10 @@ public class TransactionRepository : ITransactionRepository
     public async Task DeleteAsync(Transaction transaction)
     {
         await _transactionDao.DeleteAsync(transaction);
+    }
+
+    public async Task DeleteRangeAsync(IEnumerable<Transaction> transactions)
+    {
+        await _transactionDao.DeleteRangeAsync(transactions);
     }
 }

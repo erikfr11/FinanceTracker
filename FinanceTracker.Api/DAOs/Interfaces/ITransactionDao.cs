@@ -9,8 +9,10 @@ namespace FinanceTracker.Api.DAOs.Interfaces;
 public interface ITransactionDao
 {
     Task<Transaction?> GetByIdAsync(Guid id);
-    Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId);
+    Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, int? categoryId = null, string? type = null);
     Task<Transaction> AddAsync(Transaction transaction);
+    Task AddRangeAsync(IEnumerable<Transaction> transactions);
     Task UpdateAsync(Transaction transaction);
     Task DeleteAsync(Transaction transaction);
+    Task DeleteRangeAsync(IEnumerable<Transaction> transactions);
 }

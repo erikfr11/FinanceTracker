@@ -42,6 +42,13 @@ builder.Services.AddSingleton<FinanceTracker.Api.DAOs.Factories.IDaoFactory, Fin
 
 // ── API / Domain (Repository Singleton Factory) ─────────────────────
 builder.Services.AddSingleton<FinanceTracker.Api.Repositories.Factories.IRepositoryFactory, FinanceTracker.Api.Repositories.Factories.RepositoryFactory>();
+
+// ── App Services & format providers ─────────────────────────────────
+builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionFormatProvider, FinanceTracker.Api.Services.FormatProviders.JsonTransactionProvider>();
+builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionFormatProvider, FinanceTracker.Api.Services.FormatProviders.CsvTransactionProvider>();
+builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionFormatProvider, FinanceTracker.Api.Services.FormatProviders.ExcelTransactionProvider>();
+builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionService, FinanceTracker.Api.Services.TransactionService>();
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
