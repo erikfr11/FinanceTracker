@@ -36,6 +36,11 @@ public class Category : ICategory
     public bool IsSystemCategory { get; set; }
 
     /// <summary>
+    /// The owner of the category. If null and IsSystemCategory is true, it is accessible to all.
+    /// </summary>
+    public Guid? UserId { get; set; }
+
+    /// <summary>
     /// All transactions assigned to this category.
     /// </summary>
     public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();

@@ -48,6 +48,7 @@ builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactio
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionFormatProvider, FinanceTracker.Api.Services.FormatProviders.CsvTransactionProvider>();
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionFormatProvider, FinanceTracker.Api.Services.FormatProviders.ExcelTransactionProvider>();
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionService, FinanceTracker.Api.Services.TransactionService>();
+builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ICategoryService, FinanceTracker.Api.Services.CategoryService>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

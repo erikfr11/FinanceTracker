@@ -27,14 +27,15 @@ public class FinanceModelFactory : IFinanceModelFactory
         return user;
     }
 
-    public Category CreateCategory(string name, CategoryType type, ExpenseType expenseType, bool isSystemCategory = false)
+    public Category CreateCategory(string name, CategoryType type, ExpenseType expenseType, bool isSystemCategory = false, Guid? userId = null)
     {
         var category = new Category
         {
             Name = name,
             Type = type,
             ExpenseType = expenseType,
-            IsSystemCategory = isSystemCategory
+            IsSystemCategory = isSystemCategory,
+            UserId = userId
         };
 
         if (!category.IsValid())

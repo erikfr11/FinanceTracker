@@ -9,8 +9,11 @@ namespace FinanceTracker.Api.DAOs.Interfaces;
 public interface ICategoryDao
 {
     Task<Category?> GetByIdAsync(int id);
-    Task<IEnumerable<Category>> GetAllAsync();
+    Task<IEnumerable<Category>> GetVisibleAsync(Guid userId);
+    Task<IEnumerable<Category>> GetBulkAsync(IEnumerable<int> ids);
     Task<Category> AddAsync(Category category);
+    Task AddRangeAsync(IEnumerable<Category> categories);
     Task UpdateAsync(Category category);
     Task DeleteAsync(Category category);
+    Task DeleteRangeAsync(IEnumerable<Category> categories);
 }

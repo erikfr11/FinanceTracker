@@ -17,7 +17,7 @@ public interface IFinanceModelFactory
     /// <summary>
     /// Creates a new Category instance.
     /// </summary>
-    Category CreateCategory(string name, CategoryType type, ExpenseType expenseType, bool isSystemCategory = false);
+    Category CreateCategory(string name, CategoryType type, ExpenseType expenseType, bool isSystemCategory = false, Guid? userId = null);
 
     /// <summary>
     /// Creates a new Transaction instance.

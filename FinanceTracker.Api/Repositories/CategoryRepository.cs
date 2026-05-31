@@ -22,21 +22,24 @@ public class CategoryRepository : ICategoryRepository
         return await _categoryDao.GetByIdAsync(id);
     }
 
-    public async Task<IEnumerable<Category>> GetAllAsync(bool includeSystemCategories = true)
+    public async Task<IEnumerable<Category>> GetVisibleAsync(Guid userId)
     {
-        var allCategories = await _categoryDao.GetAllAsync();
-        
-        if (!includeSystemCategories)
-        {
-            return allCategories.Where(c => !c.IsSystemCategory);
-        }
-        
-        return allCategories;
+        return await _categoryDao.GetVisibleAsync(userId);
+    }
+
+    public async Task<IEnumerable<Category>> GetBulkAsync(IEnumerable<int> ids)
+    {
+        return await _categoryDao.GetBulkAsync(ids);
     }
 
     public async Task<Category> AddAsync(Category category)
     {
         return await _categoryDao.AddAsync(category);
+    }
+
+    public async Task AddRangeAsync(IEnumerable<Category> categories)
+    {
+        await _categoryDao.AddRangeAsync(categories);
     }
 
     public async Task UpdateAsync(Category category)
@@ -47,5 +50,10 @@ public class CategoryRepository : ICategoryRepository
     public async Task DeleteAsync(Category category)
     {
         await _categoryDao.DeleteAsync(category);
+    }
+
+    public async Task DeleteRangeAsync(IEnumerable<Category> categories)
+    {
+        await _categoryDao.DeleteRangeAsync(categories);
     }
 }

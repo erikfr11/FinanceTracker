@@ -24,10 +24,21 @@ public class CategoryDao : ICategoryDao
         return await context.Categories.FindAsync(id);
     }
 
-    public async Task<IEnumerable<Category>> GetAllAsync()
+    public async Task<IEnumerable<Category>> GetVisibleAsync(Guid userId)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        return await context.Categories.ToListAsync();
+        return await context.Categories
+            .Where(c => c.IsSystemCategory || c.UserId == userId)
+            .OrderBy(c => c.Name)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Category>> GetBulkAsync(IEnumerable<int> ids)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Categories
+            .Where(c => ids.Contains(c.Id))
+            .ToListAsync();
     }
 
     public async Task<Category> AddAsync(Category category)
@@ -36,6 +47,13 @@ public class CategoryDao : ICategoryDao
         context.Categories.Add(category);
         await context.SaveChangesAsync();
         return category;
+    }
+
+    public async Task AddRangeAsync(IEnumerable<Category> categories)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        await context.Categories.AddRangeAsync(categories);
+        await context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Category category)
@@ -49,6 +67,13 @@ public class CategoryDao : ICategoryDao
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         context.Categories.Remove(category);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task DeleteRangeAsync(IEnumerable<Category> categories)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        context.Categories.RemoveRange(categories);
         await context.SaveChangesAsync();
     }
 }

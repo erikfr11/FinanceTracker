@@ -43,8 +43,8 @@ public class TransactionDao : ITransactionDao
         if (categoryId.HasValue)
             query = query.Where(t => t.CategoryId == categoryId.Value);
 
-        if (!string.IsNullOrEmpty(type))
-            query = query.Where(t => t.Category.Type == type);
+        if (!string.IsNullOrEmpty(type) && Enum.TryParse<FinanceTracker.Api.Models.Enums.CategoryType>(type, true, out var parsedType))
+            query = query.Where(t => t.Category.Type == parsedType);
 
         return await query.OrderByDescending(t => t.Date).ToListAsync();
     }

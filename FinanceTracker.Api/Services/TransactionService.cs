@@ -13,11 +13,11 @@ public class TransactionService : ITransactionService
     private readonly IEnumerable<ITransactionFormatProvider> _formatProviders;
 
     public TransactionService(
-        ITransactionRepository repository, 
+        FinanceTracker.Api.Repositories.Factories.IRepositoryFactory repositoryFactory, 
         IFinanceModelFactory modelFactory,
         IEnumerable<ITransactionFormatProvider> formatProviders)
     {
-        _repository = repository;
+        _repository = repositoryFactory.GetTransactionRepository();
         _modelFactory = modelFactory;
         _formatProviders = formatProviders;
     }
@@ -38,7 +38,7 @@ public class TransactionService : ITransactionService
 
     public async Task<TransactionResponseDto> AddAsync(Guid userId, TransactionCreateDto dto)
     {
-        var transaction = _modelFactory.CreateTransaction(dto.Amount, dto.Date, dto.Note, dto.CategoryId, userId);
+        var transaction = _modelFactory.CreateTransaction(dto.Amount, dto.Date, dto.CategoryId, userId, dto.Note);
         var created = await _repository.AddAsync(transaction);
         // Note: Category data won't be immediately populated unless we re-fetch, but for add we can omit it or re-fetch.
         // Doing a simple return here; real app we might fetch the category explicitly if Response expects it fully populated.
@@ -47,7 +47,7 @@ public class TransactionService : ITransactionService
 
     public async Task<IEnumerable<TransactionResponseDto>> AddBulkAsync(Guid userId, IEnumerable<TransactionCreateDto> dtos)
     {
-        var transactions = dtos.Select(dto => _modelFactory.CreateTransaction(dto.Amount, dto.Date, dto.Note, dto.CategoryId, userId)).ToList();
+        var transactions = dtos.Select(dto => _modelFactory.CreateTransaction(dto.Amount, dto.Date, dto.CategoryId, userId, dto.Note)).ToList();
         await _repository.AddRangeAsync(transactions);
         return transactions.Select(MapToResponse);
     }
@@ -119,7 +119,7 @@ public class TransactionService : ITransactionService
             Note = t.Note,
             CategoryId = t.CategoryId,
             CategoryName = t.Category?.Name ?? string.Empty,
-            CategoryType = t.Category?.Type ?? string.Empty
+            CategoryType = t.Category != null ? t.Category.Type.ToString() : string.Empty
         };
     }
 }
