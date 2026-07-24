@@ -3,6 +3,7 @@ import { X, Plus, Edit2 } from 'lucide-react';
 import type { CategoryDto } from '../../services/categoryService';
 import type { TransactionDto, TransactionCreateDto, TransactionUpdateDto } from '../../services/transactionService';
 import CustomSelect from '../ui/CustomSelect';
+import DatePicker from '../ui/DatePicker';
 
 interface NewTransactionModalProps {
   isOpen: boolean;
@@ -255,12 +256,9 @@ export default function NewTransactionModal({
           {/* Date */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-dark-300">Datum</label>
-            <input
-              type="date"
-              required
+            <DatePicker
               value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className={inputClass}
+              onChange={(val) => setDate(val)}
             />
           </div>
 
