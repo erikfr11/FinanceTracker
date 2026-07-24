@@ -28,6 +28,10 @@ public class User : IdentityUser<Guid>, IUser
     
     public string? AvatarUrl { get; set; }
 
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public DateTime? LastLoginAtUtc { get; set; }
+
     /// <summary>
     /// All transactions created by this user.
     /// </summary>

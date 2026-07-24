@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import Users from './pages/Users';
 
 // Helper component um Eingeloggte von der LandingPage fernzuhalten
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
@@ -45,6 +46,7 @@ function App() {
                 <Route path="/transactions" element={<Transactions />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/admin/users" element={<Users />} />
               </Route>
             </Route>
 

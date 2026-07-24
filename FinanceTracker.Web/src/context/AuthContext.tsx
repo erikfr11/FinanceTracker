@@ -2,19 +2,22 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { type DummyUser } from '../data/dummyData';
 import { API_BASE_URL, getStoredToken, setStoredToken, removeStoredToken, fetchWithAuth } from '../services/api';
 
-interface AuthUser {
+export interface AuthUser {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
   preferredCurrency: string;
   isPremiumUser: boolean;
+  isAdmin: boolean;
   avatarUrl?: string;
+  createdAtUtc?: string;
+  lastLoginAtUtc?: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: DummyUser | AuthUser | null;
+  user: (DummyUser & { isAdmin?: boolean }) | AuthUser | null;
   login: (email: string, password: string) => Promise<void>;
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -25,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<DummyUser | AuthUser | null>(null);
+  const [user, setUser] = useState<(DummyUser & { isAdmin?: boolean }) | AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const fetchCurrentUser = async () => {
@@ -36,29 +39,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const res = await fetchWithAuth('/manage/info');
-      if (res.ok) {
-        const info = await res.json();
-        // Fallback user object populated from Identity info
-        const parts = (info.email || '').split('@');
-        const defaultName = parts[0] || 'Admin';
+      // 1. Try our custom endpoint first for full user details & role
+      const meRes = await fetchWithAuth('/api/users/me');
+      if (meRes.ok) {
+        const meData = await meRes.json();
         setUser({
-          id: info.id || '1',
-          firstName: defaultName.charAt(0).toUpperCase() + defaultName.slice(1),
-          lastName: 'User',
-          email: info.email,
-          preferredCurrency: 'EUR',
-          isPremiumUser: true,
+          id: meData.id,
+          firstName: meData.firstName || meData.email.split('@')[0],
+          lastName: meData.lastName || 'User',
+          email: meData.email,
+          preferredCurrency: meData.preferredCurrency || 'EUR',
+          isPremiumUser: meData.isPremiumUser ?? true,
+          isAdmin: meData.isAdmin ?? false,
+          createdAtUtc: meData.createdAtUtc,
+          lastLoginAtUtc: meData.lastLoginAtUtc,
           avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
         });
         setIsAuthenticated(true);
       } else {
-        removeStoredToken();
-        setUser(null);
-        setIsAuthenticated(false);
+        // Fallback to /manage/info
+        const res = await fetchWithAuth('/manage/info');
+        if (res.ok) {
+          const info = await res.json();
+          const parts = (info.email || '').split('@');
+          const defaultName = parts[0] || 'Admin';
+          const isAdminUser = info.email?.toLowerCase().includes('admin');
+          setUser({
+            id: info.id || '1',
+            firstName: defaultName.charAt(0).toUpperCase() + defaultName.slice(1),
+            lastName: 'User',
+            email: info.email,
+            preferredCurrency: 'EUR',
+            isPremiumUser: true,
+            isAdmin: isAdminUser,
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+          });
+          setIsAuthenticated(true);
+        } else {
+          removeStoredToken();
+          setUser(null);
+          setIsAuthenticated(false);
+        }
       }
     } catch {
-      // In case of error (e.g. offline API), clear token
       removeStoredToken();
       setUser(null);
       setIsAuthenticated(false);
@@ -84,7 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const data = await res.json();
         if (data.detail) errorMsg = data.detail;
       } catch {
-        // ignore parse error
+        // ignore
       }
       throw new Error(errorMsg);
     }
@@ -107,7 +130,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('Registrierung fehlgeschlagen.');
     }
 
-    // Auto login after register
     await login(email, password);
   };
 
