@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, ArrowLeftRight, User, Settings, LogOut, Sun, Moon, Wallet, ChevronDown, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, User, Settings, LogOut, Sun, Moon, Wallet, ChevronDown, ShieldCheck, Palette } from 'lucide-react';
 
 const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -99,9 +99,14 @@ const Navbar = () => {
                     <Settings className="h-4 w-4" /> Einstellungen
                   </Link>
                   {user?.isAdmin && (
-                    <Link to="/admin/users" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-emerald-400 hover:text-emerald-300 hover:bg-dark-800 transition-colors font-medium">
-                      <ShieldCheck className="h-4 w-4 text-emerald-500" /> Benutzerübersicht
-                    </Link>
+                    <>
+                      <Link to="/admin/theme" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-primary-400 hover:text-primary-300 hover:bg-dark-800 transition-colors font-medium">
+                        <Palette className="h-4 w-4 text-primary-400" /> Farbschema anpassen
+                      </Link>
+                      <Link to="/admin/users" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-emerald-400 hover:text-emerald-300 hover:bg-dark-800 transition-colors font-medium">
+                        <ShieldCheck className="h-4 w-4 text-emerald-500" /> Benutzerübersicht
+                      </Link>
+                    </>
                   )}
                   <div className="border-t border-dark-700 mt-1 pt-1">
                     <button onClick={handleLogout} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-dark-800 transition-colors">

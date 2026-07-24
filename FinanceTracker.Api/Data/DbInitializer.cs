@@ -82,6 +82,12 @@ public static class DbInitializer
             }
             else
             {
+                if (!await userManager.IsInRoleAsync(adminUser, adminRole))
+                {
+                    await userManager.AddToRoleAsync(adminUser, adminRole);
+                    logger.LogInformation("Added Admin role to existing admin user '{Email}'.", adminEmail);
+                }
+
                 // Ensure password is synchronized with appsettings
                 var token = await userManager.GeneratePasswordResetTokenAsync(adminUser);
                 await userManager.ResetPasswordAsync(adminUser, token, adminPassword);

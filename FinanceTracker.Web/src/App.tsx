@@ -14,6 +14,8 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Users from './pages/Users';
 
+import ThemeSettingsPage from './pages/ThemeSettingsPage';
+
 // Helper component um Eingeloggte von der LandingPage fernzuhalten
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
@@ -47,6 +49,7 @@ function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin/users" element={<Users />} />
+                <Route path="/admin/theme" element={<ThemeSettingsPage />} />
               </Route>
             </Route>
 

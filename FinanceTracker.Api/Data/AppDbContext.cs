@@ -18,6 +18,7 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
 
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<SystemThemeSettings> ThemeSettings => Set<SystemThemeSettings>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -111,6 +112,31 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
             new Category { Id = 8, Name = "Transport",       Type = CategoryType.Expense, ExpenseType = ExpenseType.Variable, IsSystemCategory = true },
             new Category { Id = 9, Name = "Unterhaltung",    Type = CategoryType.Expense, ExpenseType = ExpenseType.Variable, IsSystemCategory = true },
             new Category { Id = 10, Name = "Sonstiges",      Type = CategoryType.Expense, ExpenseType = ExpenseType.Variable, IsSystemCategory = true }
+        );
+
+        // ── Seed System Theme Settings ──────────────────────────────
+        builder.Entity<SystemThemeSettings>().HasData(
+            new SystemThemeSettings
+            {
+                Id = 1,
+                DarkPageBg = "#020617",
+                DarkCardBg = "#0f172a",
+                DarkSurfaceBg = "#1e293b",
+                DarkBorderColor = "#334155",
+                DarkTextPrimary = "#f1f5f9",
+                DarkTextSecondary = "#cbd5e1",
+                DarkTextMuted = "#94a3b8",
+                LightPageBg = "#f8fafc",
+                LightCardBg = "#ffffff",
+                LightSurfaceBg = "#f1f5f9",
+                LightBorderColor = "#e2e8f0",
+                LightTextPrimary = "#0f172a",
+                LightTextSecondary = "#475569",
+                LightTextMuted = "#64748b",
+                PrimaryColor = "#2563eb",
+                IncomeColor = "#10b981",
+                ExpenseColor = "#ef4444"
+            }
         );
     }
 }
