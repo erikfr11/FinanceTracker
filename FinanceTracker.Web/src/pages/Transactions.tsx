@@ -15,6 +15,7 @@ import TransactionTable from '../components/transactions/TransactionTable';
 import NewTransactionModal from '../components/transactions/NewTransactionModal';
 import CategoryManagementModal from '../components/categories/CategoryManagementModal';
 import ExportDropdown from '../components/dashboard/ExportDropdown';
+import CustomSelect from '../components/ui/CustomSelect';
 
 export default function Transactions() {
   const { user } = useAuth();
@@ -166,15 +167,18 @@ export default function Transactions() {
         </div>
 
         {viewMode === 'all' && (
-          <select
-            value={filterType}
-            onChange={e => setFilterType(e.target.value as any)}
-            className="bg-dark-800 border border-dark-700 text-white text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block px-3 py-2 outline-none"
-          >
-            <option value="All">Alle Typen</option>
-            <option value="Income">Nur Einnahmen</option>
-            <option value="Expense">Nur Ausgaben</option>
-          </select>
+          <div className="w-48">
+            <CustomSelect<'All' | 'Income' | 'Expense'>
+              options={[
+                { value: 'All', label: 'Alle Typen' },
+                { value: 'Income', label: 'Nur Einnahmen' },
+                { value: 'Expense', label: 'Nur Ausgaben' },
+              ]}
+              value={filterType}
+              onChange={(val) => setFilterType(val)}
+              size="sm"
+            />
+          </div>
         )}
       </div>
 

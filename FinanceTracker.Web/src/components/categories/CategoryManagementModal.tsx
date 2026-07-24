@@ -8,6 +8,7 @@ import {
   updateCategory,
   deleteCategory,
 } from '../../services/categoryService';
+import CustomSelect from '../ui/CustomSelect';
 
 interface CategoryManagementModalProps {
   isOpen: boolean;
@@ -192,10 +193,13 @@ export default function CategoryManagementModal({
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-dark-300">Typ</label>
-                  <select
+                  <CustomSelect<'Expense' | 'Income'>
+                    options={[
+                      { value: 'Expense', label: 'Ausgabe' },
+                      { value: 'Income', label: 'Einnahme' },
+                    ]}
                     value={type}
-                    onChange={(e) => {
-                      const newType = e.target.value as 'Income' | 'Expense';
+                    onChange={(newType) => {
                       setType(newType);
                       if (newType === 'Income') {
                         setExpenseType('None');
@@ -203,24 +207,22 @@ export default function CategoryManagementModal({
                         setExpenseType('Variable');
                       }
                     }}
-                    className={inputClass}
-                  >
-                    <option value="Expense">Ausgabe</option>
-                    <option value="Income">Einnahme</option>
-                  </select>
+                    size="sm"
+                  />
                 </div>
 
                 {type === 'Expense' && (
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-dark-300">Ausgabetyp</label>
-                    <select
-                      value={expenseType}
-                      onChange={(e) => setExpenseType(e.target.value as 'Fixed' | 'Variable')}
-                      className={inputClass}
-                    >
-                      <option value="Variable">Variabel (z.B. Einkäufe, Hobbys)</option>
-                      <option value="Fixed">Fixkosten (z.B. Miete, Abo)</option>
-                    </select>
+                    <CustomSelect<'Variable' | 'Fixed'>
+                      options={[
+                        { value: 'Variable', label: 'Variabel', sublabel: 'Einkäufe, Hobbys' },
+                        { value: 'Fixed', label: 'Fixkosten', sublabel: 'Miete, Abos' },
+                      ]}
+                      value={expenseType as 'Variable' | 'Fixed'}
+                      onChange={(val) => setExpenseType(val)}
+                      size="sm"
+                    />
                   </div>
                 )}
 

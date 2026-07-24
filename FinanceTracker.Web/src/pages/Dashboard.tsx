@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Plus, Wallet, TrendingUp, TrendingDown, Receipt, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   type TransactionDto,
   type TransactionCreateDto,
@@ -18,6 +19,16 @@ const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#e
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
+
+  const gridColor = isDark ? '#1e293b' : '#e2e8f0';
+  const axisTextColor = isDark ? '#94a3b8' : '#64748b';
+  const tooltipStyle = {
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    border: isDark ? '1px solid #1e293b' : '1px solid #e2e8f0',
+    borderRadius: '12px',
+    color: isDark ? '#e2e8f0' : '#0f172a',
+  };
 
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -238,11 +249,11 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-white mb-4">Einnahmen vs. Ausgaben ({year})</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={barData} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                  <XAxis dataKey="name" tick={{ fill: axisTextColor, fontSize: 12 }} />
+                  <YAxis tick={{ fill: axisTextColor, fontSize: 12 }} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#e2e8f0' }}
+                    contentStyle={tooltipStyle}
                     formatter={(value: number) => fmt(value)}
                   />
                   <Bar dataKey="Einnahmen" fill="#10b981" radius={[6, 6, 0, 0]} />
@@ -277,7 +288,7 @@ export default function Dashboard() {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#e2e8f0' }}
+                      contentStyle={tooltipStyle}
                       formatter={(value: number) => fmt(value)}
                     />
                   </PieChart>

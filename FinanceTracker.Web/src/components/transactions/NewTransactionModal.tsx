@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Edit2 } from 'lucide-react';
 import type { CategoryDto } from '../../services/categoryService';
 import type { TransactionDto, TransactionCreateDto, TransactionUpdateDto } from '../../services/transactionService';
+import CustomSelect from '../ui/CustomSelect';
 
 interface NewTransactionModalProps {
   isOpen: boolean;
@@ -211,31 +212,29 @@ export default function NewTransactionModal({
           {type === 'Expense' && (
             <div className="space-y-2">
               <label className="text-xs font-medium text-dark-300">Ausgabetyp</label>
-              <select
+              <CustomSelect<'Variable' | 'Fixed'>
+                options={[
+                  { value: 'Variable', label: 'Variabel', sublabel: 'Einkäufe, Shopping, Hobbys' },
+                  { value: 'Fixed', label: 'Fixkosten', sublabel: 'Miete, Abos, Versicherungen' },
+                ]}
                 value={expenseSubtype}
-                onChange={(e) => setExpenseSubtype(e.target.value as 'Variable' | 'Fixed')}
-                className={inputClass}
-              >
-                <option value="Variable">Variabel (Einkäufe, Shopping, Hobbys)</option>
-                <option value="Fixed">Fixkosten (Miete, Abos, Versicherungen)</option>
-              </select>
+                onChange={(val) => setExpenseSubtype(val)}
+              />
             </div>
           )}
 
           {/* Category Dropdown */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-dark-300">Kategorie</label>
-            <select
+            <CustomSelect<number>
+              options={filteredCategories.map((c) => ({
+                value: c.id,
+                label: c.name,
+                sublabel: c.name.toLowerCase() === 'sonstiges' ? 'Standard' : undefined,
+              }))}
               value={categoryId}
-              onChange={(e) => setCategoryId(Number(e.target.value))}
-              className={inputClass}
-            >
-              {filteredCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} {c.name.toLowerCase() === 'sonstiges' ? '(Standard)' : ''}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setCategoryId(val)}
+            />
           </div>
 
           {/* Amount */}
