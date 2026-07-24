@@ -40,9 +40,8 @@ public class TransactionService : ITransactionService
     {
         var transaction = _modelFactory.CreateTransaction(dto.Amount, dto.Date, dto.CategoryId, userId, dto.Note);
         var created = await _repository.AddAsync(transaction);
-        // Note: Category data won't be immediately populated unless we re-fetch, but for add we can omit it or re-fetch.
-        // Doing a simple return here; real app we might fetch the category explicitly if Response expects it fully populated.
-        return MapToResponse(created); 
+        var loaded = await _repository.GetByIdAsync(created.Id);
+        return MapToResponse(loaded ?? created); 
     }
 
     public async Task<IEnumerable<TransactionResponseDto>> AddBulkAsync(Guid userId, IEnumerable<TransactionCreateDto> dtos)
@@ -116,10 +115,11 @@ public class TransactionService : ITransactionService
             Id = t.Id,
             Amount = t.Amount,
             Date = t.Date,
-            Note = t.Note,
+            Note = t.Note ?? string.Empty,
             CategoryId = t.CategoryId,
             CategoryName = t.Category?.Name ?? string.Empty,
-            CategoryType = t.Category != null ? t.Category.Type.ToString() : string.Empty
+            CategoryType = t.Category != null ? t.Category.Type.ToString() : string.Empty,
+            CategoryExpenseType = t.Category != null ? t.Category.ExpenseType.ToString() : string.Empty
         };
     }
 }

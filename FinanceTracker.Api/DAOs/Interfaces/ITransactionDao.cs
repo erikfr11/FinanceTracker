@@ -15,4 +15,5 @@ public interface ITransactionDao
     Task UpdateAsync(Transaction transaction);
     Task DeleteAsync(Transaction transaction);
     Task DeleteRangeAsync(IEnumerable<Transaction> transactions);
+    Task ReassignCategoryAsync(IEnumerable<int> oldCategoryIds, int newCategoryId);
 }

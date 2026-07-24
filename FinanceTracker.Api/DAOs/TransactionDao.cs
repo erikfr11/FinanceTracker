@@ -84,4 +84,20 @@ public class TransactionDao : ITransactionDao
         context.Transactions.RemoveRange(transactions);
         await context.SaveChangesAsync();
     }
+
+    public async Task ReassignCategoryAsync(IEnumerable<int> oldCategoryIds, int newCategoryId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var idList = oldCategoryIds.ToList();
+        var txs = await context.Transactions
+            .Where(t => idList.Contains(t.CategoryId))
+            .ToListAsync();
+
+        foreach (var t in txs)
+        {
+            t.CategoryId = newCategoryId;
+        }
+
+        await context.SaveChangesAsync();
+    }
 }

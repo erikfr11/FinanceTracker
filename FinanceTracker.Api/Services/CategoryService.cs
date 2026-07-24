@@ -9,6 +9,7 @@ namespace FinanceTracker.Api.Services;
 public class CategoryService : ICategoryService
 {
     private readonly ICategoryRepository _repository;
+    private readonly ITransactionRepository _transactionRepository;
     private readonly IFinanceModelFactory _modelFactory;
 
     public CategoryService(
@@ -16,6 +17,7 @@ public class CategoryService : ICategoryService
         IFinanceModelFactory modelFactory)
     {
         _repository = repositoryFactory.GetCategoryRepository();
+        _transactionRepository = repositoryFactory.GetTransactionRepository();
         _modelFactory = modelFactory;
     }
 
@@ -84,20 +86,52 @@ public class CategoryService : ICategoryService
 
         AssertWriteAccess(category, userId, isAdmin);
 
+        if (category.IsSystemCategory && category.Name.Equals("Sonstiges", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Die Standard-Kategorie 'Sonstiges' kann nicht gelöscht werden.");
+        }
+
+        var visible = await _repository.GetVisibleAsync(userId);
+        var defaultCategory = visible.FirstOrDefault(c => c.IsSystemCategory && c.Name.Equals("Sonstiges", StringComparison.OrdinalIgnoreCase))
+            ?? visible.FirstOrDefault(c => c.IsSystemCategory);
+
+        if (defaultCategory != null && defaultCategory.Id != category.Id)
+        {
+            await _transactionRepository.ReassignCategoryAsync(new[] { category.Id }, defaultCategory.Id);
+        }
+
         await _repository.DeleteAsync(category);
     }
 
     public async Task DeleteBulkAsync(IEnumerable<int> ids, Guid userId, bool isAdmin)
     {
-        var categories = await _repository.GetBulkAsync(ids);
+        var idList = ids.ToList();
+        var categories = (await _repository.GetBulkAsync(idList)).ToList();
         
         foreach (var category in categories)
         {
             AssertWriteAccess(category, userId, isAdmin);
+            if (category.IsSystemCategory && category.Name.Equals("Sonstiges", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Die Standard-Kategorie 'Sonstiges' kann nicht gelöscht werden.");
+            }
         }
 
         if (categories.Any())
         {
+            var visible = await _repository.GetVisibleAsync(userId);
+            var defaultCategory = visible.FirstOrDefault(c => c.IsSystemCategory && c.Name.Equals("Sonstiges", StringComparison.OrdinalIgnoreCase))
+                ?? visible.FirstOrDefault(c => c.IsSystemCategory);
+
+            if (defaultCategory != null)
+            {
+                var toDeleteIds = categories.Select(c => c.Id).Where(cId => cId != defaultCategory.Id).ToList();
+                if (toDeleteIds.Any())
+                {
+                    await _transactionRepository.ReassignCategoryAsync(toDeleteIds, defaultCategory.Id);
+                }
+            }
+
             await _repository.DeleteRangeAsync(categories);
         }
     }

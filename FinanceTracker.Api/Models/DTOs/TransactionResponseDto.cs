@@ -9,4 +9,5 @@ public class TransactionResponseDto
     public int CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string CategoryType { get; set; } = string.Empty; // "Income" / "Expense"
+    public string CategoryExpenseType { get; set; } = string.Empty; // "None" / "Fixed" / "Variable"
 }

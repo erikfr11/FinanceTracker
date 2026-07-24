@@ -51,4 +51,9 @@ public class TransactionRepository : ITransactionRepository
     {
         await _transactionDao.DeleteRangeAsync(transactions);
     }
+
+    public async Task ReassignCategoryAsync(IEnumerable<int> oldCategoryIds, int newCategoryId)
+    {
+        await _transactionDao.ReassignCategoryAsync(oldCategoryIds, newCategoryId);
+    }
 }
