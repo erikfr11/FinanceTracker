@@ -1,19 +1,36 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Wallet } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Wallet, AlertCircle, Loader2, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, password);
-    navigate('/');
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await login(email, password);
+      navigate('/');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Ein unerwarteter Fehler ist aufgetreten.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -23,12 +40,39 @@ export default function Login() {
         <span className="text-2xl font-bold tracking-tight">FinanceTracker</span>
       </div>
 
-      <div className="mb-10 text-center lg:text-left">
+      <div className="mb-8 text-center lg:text-left">
         <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Willkommen zurück</h2>
         <p className="text-slate-500 dark:text-slate-400 text-sm">
           Bitte logge dich in dein Konto ein, um fortzufahren.
         </p>
       </div>
+
+      {/* Admin Credentials Helper Badge */}
+      <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between">
+        <div className="text-xs text-emerald-800 dark:text-emerald-300">
+          <span className="font-semibold block text-sm mb-0.5">Admin-Zugang (Development):</span>
+          <code>admin@local</code>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setEmail('admin@local');
+            setPassword('Password123!');
+            setError(null);
+          }}
+          className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
+        >
+          <KeyRound className="h-3.5 w-3.5" />
+          Ausfüllen
+        </button>
+      </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-3 text-red-700 dark:text-red-300 text-sm">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
@@ -72,10 +116,20 @@ export default function Login() {
 
         <button
           type="submit"
-          className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-blue-900 hover:bg-blue-800 text-white font-medium rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-blue-900/20 mt-6"
+          disabled={isSubmitting}
+          className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white font-medium rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-blue-900/20 mt-6 cursor-pointer"
         >
-          Anmelden
-          <ArrowRight className="h-4 w-4" />
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Anmelden...
+            </>
+          ) : (
+            <>
+              Anmelden
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
         </button>
       </form>
 

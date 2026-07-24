@@ -51,16 +51,33 @@ builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactio
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionService, FinanceTracker.Api.Services.TransactionService>();
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ICategoryService, FinanceTracker.Api.Services.CategoryService>();
 
+// ── CORS Configuration ──────────────────────────────────────────────
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevelopmentCors", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// ── Database Seeding ────────────────────────────────────────────────
+await DbInitializer.SeedAsync(app);
 
 // ── Middleware pipeline ─────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseCors("DevelopmentCors");
 
 app.UseHttpsRedirection();
 

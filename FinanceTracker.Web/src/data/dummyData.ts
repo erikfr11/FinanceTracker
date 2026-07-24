@@ -1,4 +1,4 @@
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 // ── Types ───────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Plus, Wallet, TrendingUp, TrendingDown, Receipt } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
