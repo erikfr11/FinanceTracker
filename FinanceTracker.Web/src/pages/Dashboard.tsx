@@ -1,6 +1,30 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Plus, Wallet, TrendingUp, TrendingDown, Receipt, RefreshCw, AlertTriangle } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import {
+  Plus,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Receipt,
+  RefreshCw,
+  AlertTriangle,
+  BarChart3,
+  LineChart as LineChartIcon,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -40,6 +64,9 @@ export default function Dashboard() {
     new Date().toISOString().substring(0, 7) // e.g. "2026-07"
   );
 
+  // Chart type toggle: 'bar' (Income vs Expense) or 'line' (Net Balance trend)
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -61,7 +88,7 @@ export default function Dashboard() {
     loadData();
   }, [loadData]);
 
-  // Generate available months dynamically from transactions data or past 6 months
+  // Generate available months dynamically from transactions data or past months
   const months = useMemo(() => {
     const map = new Map<string, string>();
     const monthFormatter = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
@@ -137,6 +164,29 @@ export default function Dashboard() {
     return monthlyStats;
   }, [transactions, year]);
 
+  // Line chart data & dynamic SVG gradient offset for positive (green) vs negative (red)
+  const { lineData, gradientOffset } = useMemo(() => {
+    const data = barData.map((item) => ({
+      ...item,
+      Bilanz: item.Einnahmen - item.Ausgaben,
+    }));
+
+    const values = data.map((d) => d.Bilanz);
+    const minVal = Math.min(...values, 0);
+    const maxVal = Math.max(...values, 0);
+
+    let offset = 0.5;
+    if (maxVal <= 0) {
+      offset = 0;
+    } else if (minVal >= 0) {
+      offset = 1;
+    } else {
+      offset = maxVal / (maxVal - minVal);
+    }
+
+    return { lineData: data, gradientOffset: offset };
+  }, [barData]);
+
   // Pie chart data for expenses by category
   const pieData = useMemo(() => {
     const catMap = new Map<string, number>();
@@ -204,7 +254,7 @@ export default function Dashboard() {
           <ExportDropdown />
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors shadow-lg shadow-primary-600/20"
           >
             <Plus className="h-4 w-4" />
             Neue Transaktion
@@ -244,22 +294,110 @@ export default function Dashboard() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Bar Chart */}
-            <div className="lg:col-span-2 bg-dark-900 border border-dark-800 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Einnahmen vs. Ausgaben ({year})</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={barData} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                  <XAxis dataKey="name" tick={{ fill: axisTextColor, fontSize: 12 }} />
-                  <YAxis tick={{ fill: axisTextColor, fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value: number) => fmt(value)}
-                  />
-                  <Bar dataKey="Einnahmen" fill="#10b981" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="Ausgaben" fill="#ef4444" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            {/* Toggleable Main Chart (Bar Chart vs. Net Balance Line Chart) */}
+            <div className="lg:col-span-2 bg-dark-900 border border-dark-800 rounded-2xl p-6 flex flex-col justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    {chartType === 'bar' ? `Einnahmen vs. Ausgaben (${year})` : `Monatsbilanz-Verlauf (${year})`}
+                  </h3>
+                  <p className="text-xs text-dark-400 mt-0.5">
+                    {chartType === 'bar'
+                      ? 'Monatlicher Vergleich aller Einnahmen und Ausgaben'
+                      : 'Nettobilanz pro Monat (Grün = Positiv, Rot = Negativ)'}
+                  </p>
+                </div>
+
+                {/* Chart Mode Toggle Buttons */}
+                <div className="flex items-center bg-dark-800 border border-dark-700/80 p-1 rounded-xl gap-1 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setChartType('bar')}
+                    title="Balkendiagramm (Einnahmen vs. Ausgaben)"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      chartType === 'bar'
+                        ? 'bg-primary-600 text-white shadow'
+                        : 'text-dark-400 hover:text-white'
+                    }`}
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    <span>Balken</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartType('line')}
+                    title="Liniendiagramm (Monatsbilanz)"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      chartType === 'line'
+                        ? 'bg-primary-600 text-white shadow'
+                        : 'text-dark-400 hover:text-white'
+                    }`}
+                  >
+                    <LineChartIcon className="h-3.5 w-3.5" />
+                    <span>Bilanz-Linie</span>
+                  </button>
+                </div>
+              </div>
+
+              {chartType === 'bar' ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={barData} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="name" tick={{ fill: axisTextColor, fontSize: 12 }} />
+                    <YAxis tick={{ fill: axisTextColor, fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      formatter={(value: number) => fmt(value)}
+                    />
+                    <Bar dataKey="Einnahmen" fill="#10b981" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Ausgaben" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={lineData}>
+                    <defs>
+                      <linearGradient id="balanceLineGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" />
+                        <stop offset={`${gradientOffset * 100}%`} stopColor="#10b981" />
+                        <stop offset={`${gradientOffset * 100}%`} stopColor="#ef4444" />
+                        <stop offset="100%" stopColor="#ef4444" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="name" tick={{ fill: axisTextColor, fontSize: 12 }} />
+                    <YAxis tick={{ fill: axisTextColor, fontSize: 12 }} />
+                    <ReferenceLine y={0} stroke={axisTextColor} strokeDasharray="3 3" />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      formatter={(value: number) => [fmt(value), 'Monatsbilanz']}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="Bilanz"
+                      stroke="url(#balanceLineGradient)"
+                      strokeWidth={3}
+                      dot={(props: any) => {
+                        const { cx, cy, payload } = props;
+                        if (cx === undefined || cy === undefined) return null;
+                        const isPos = payload.Bilanz >= 0;
+                        return (
+                          <circle
+                            key={`dot-${props.index}`}
+                            cx={cx}
+                            cy={cy}
+                            r={5}
+                            fill={isPos ? '#10b981' : '#ef4444'}
+                            stroke={isDark ? '#0f172a' : '#ffffff'}
+                            strokeWidth={2}
+                          />
+                        );
+                      }}
+                      activeDot={{ r: 7 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             {/* Pie Chart */}
