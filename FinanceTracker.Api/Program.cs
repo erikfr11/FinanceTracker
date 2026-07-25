@@ -55,6 +55,8 @@ builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactio
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionFormatProvider, FinanceTracker.Api.Services.FormatProviders.ExcelTransactionProvider>();
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionService, FinanceTracker.Api.Services.TransactionService>();
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ICategoryService, FinanceTracker.Api.Services.CategoryService>();
+builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.IFixedCostService, FinanceTracker.Api.Services.FixedCostService>();
+builder.Services.AddHostedService<FinanceTracker.Api.Services.FixedCostBackgroundService>();
 
 // ── CORS Configuration ──────────────────────────────────────────────
 builder.Services.AddCors(options =>

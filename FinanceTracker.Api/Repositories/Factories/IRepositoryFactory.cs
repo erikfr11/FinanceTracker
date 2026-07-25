@@ -9,4 +9,5 @@ public interface IRepositoryFactory
 {
     ICategoryRepository GetCategoryRepository();
     ITransactionRepository GetTransactionRepository();
+    IFixedCostRepository GetFixedCostRepository();
 }

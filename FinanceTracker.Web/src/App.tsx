@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
+import FixedCosts from './pages/FixedCosts';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Users from './pages/Users';
@@ -48,6 +49,7 @@ function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/transactions" element={<Transactions />} />
+                  <Route path="/fixed-costs" element={<FixedCosts />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin/users" element={<Users />} />

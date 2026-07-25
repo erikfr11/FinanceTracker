@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, ArrowLeftRight, User, Settings, LogOut, Sun, Moon, Wallet, ChevronDown, ShieldCheck, Palette } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Repeat, User, Settings, LogOut, Sun, Moon, Wallet, ChevronDown, ShieldCheck, Palette } from 'lucide-react';
 
 const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -62,6 +62,12 @@ const Navbar = () => {
               <span className="flex items-center gap-2">
                 <ArrowLeftRight className="h-4 w-4" />
                 Transaktionen
+              </span>
+            </Link>
+            <Link to="/fixed-costs" className={navLinkClass('/fixed-costs')}>
+              <span className="flex items-center gap-2">
+                <Repeat className="h-4 w-4" />
+                Fixkosten
               </span>
             </Link>
           </div>

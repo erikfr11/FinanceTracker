@@ -12,14 +12,17 @@ public class DaoFactory : IDaoFactory
 {
     private readonly Lazy<ICategoryDao> _categoryDao;
     private readonly Lazy<ITransactionDao> _transactionDao;
+    private readonly Lazy<IFixedCostDao> _fixedCostDao;
 
     public DaoFactory(IDbContextFactory<AppDbContext> contextFactory)
     {
         // Init exactly once using the ContextFactory
         _categoryDao = new Lazy<ICategoryDao>(() => new CategoryDao(contextFactory));
         _transactionDao = new Lazy<ITransactionDao>(() => new TransactionDao(contextFactory));
+        _fixedCostDao = new Lazy<IFixedCostDao>(() => new FixedCostDao(contextFactory));
     }
 
     public ICategoryDao GetCategoryDao() => _categoryDao.Value;
     public ITransactionDao GetTransactionDao() => _transactionDao.Value;
+    public IFixedCostDao GetFixedCostDao() => _fixedCostDao.Value;
 }

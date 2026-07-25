@@ -19,10 +19,51 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<SystemThemeSettings> ThemeSettings => Set<SystemThemeSettings>();
+    public DbSet<FixedCost> FixedCosts => Set<FixedCost>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // ... (skipping unchanged code)
+
+        // ── FixedCost Configuration ─────────────────────────────────
+
+        builder.Entity<FixedCost>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+
+            entity.Property(f => f.Id)
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(f => f.Amount)
+                .HasColumnType("numeric(18,2)")
+                .IsRequired();
+
+            entity.Property(f => f.DueDayOfMonth)
+                .HasDefaultValue(1);
+
+            entity.Property(f => f.Frequency)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(FixedCostFrequency.Monthly);
+
+            entity.Property(f => f.Note)
+                .HasMaxLength(500);
+
+            entity.Property(f => f.IsActive)
+                .HasDefaultValue(true);
+
+            entity.HasOne(f => f.Category)
+                .WithMany()
+                .HasForeignKey(f => f.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(f => f.User)
+                .WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         // ── User Configuration ──────────────────────────────────────
 

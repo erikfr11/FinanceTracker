@@ -9,4 +9,5 @@ public interface IDaoFactory
 {
     ICategoryDao GetCategoryDao();
     ITransactionDao GetTransactionDao();
+    IFixedCostDao GetFixedCostDao();
 }
