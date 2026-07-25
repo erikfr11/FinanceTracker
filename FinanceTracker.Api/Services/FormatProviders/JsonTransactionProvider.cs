@@ -25,6 +25,8 @@ public class JsonTransactionProvider : ITransactionFormatProvider
             date = t.Date.ToString("yyyy-MM-dd"),
             amount = t.Amount,
             categoryName = t.CategoryName,
+            type = t.CategoryType,               // "Income" or "Expense"
+            expenseType = t.CategoryExpenseType, // "Fixed", "Variable", "None"
             note = t.Note ?? string.Empty
         });
 
@@ -47,6 +49,8 @@ public class JsonTransactionProvider : ITransactionFormatProvider
                 date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                 amount = 85.50m,
                 categoryName = "Lebensmittel",
+                type = "Expense",
+                expenseType = "Variable",
                 note = "Wocheneinkauf Supermarkt"
             },
             new
@@ -54,7 +58,18 @@ public class JsonTransactionProvider : ITransactionFormatProvider
                 date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                 amount = 2500.00m,
                 categoryName = "Gehalt",
+                type = "Income",
+                expenseType = "None",
                 note = "Monatsgehalt"
+            },
+            new
+            {
+                date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                amount = 850.00m,
+                categoryName = "Miete",
+                type = "Expense",
+                expenseType = "Fixed",
+                note = "Wohnungsmiete"
             }
         };
 

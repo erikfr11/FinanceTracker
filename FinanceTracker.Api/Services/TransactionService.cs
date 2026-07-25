@@ -122,26 +122,28 @@ public class TransactionService : ITransactionService
         {
             if (row.Amount == 0 || row.Date == default)
             {
+                result.SkippedErrorsCount++;
                 result.Errors.Add($"Ungültige Zeile übersprungen: Betrag = {row.Amount}, Datum = {row.Date:yyyy-MM-dd}");
                 continue;
             }
 
-            // Find matching category
-            var category = existingCategories.FirstOrDefault(c => c.Name.Equals(row.CategoryName, StringComparison.OrdinalIgnoreCase));
-            int categoryId;
-            if (category != null)
+            if (string.IsNullOrWhiteSpace(row.CategoryName))
             {
-                categoryId = category.Id;
-            }
-            else
-            {
-                categoryId = defaultCatId;
-                if (!string.IsNullOrWhiteSpace(row.CategoryName))
-                {
-                    result.Errors.Add($"Kategorie '{row.CategoryName}' nicht vorhanden — der Standardkategorie zugewiesen.");
-                }
+                result.SkippedErrorsCount++;
+                result.Errors.Add($"Zeile übersprungen: Kategorie fehlt (Betrag {row.Amount:F2} € am {row.Date:yyyy-MM-dd}).");
+                continue;
             }
 
+            // Strict Category Check: Match row.CategoryName against existingCategories
+            var category = existingCategories.FirstOrDefault(c => c.Name.Equals(row.CategoryName, StringComparison.OrdinalIgnoreCase));
+            if (category == null)
+            {
+                result.SkippedErrorsCount++;
+                result.Errors.Add($"Zeile übersprungen: Kategorie '{row.CategoryName}' existiert nicht im System.");
+                continue;
+            }
+
+            var categoryId = category.Id;
             var absAmount = Math.Abs(row.Amount);
             var tupleKey = $"{row.Date.Date:yyyy-MM-dd}_{categoryId}_{absAmount:F2}";
 
@@ -172,7 +174,7 @@ public class TransactionService : ITransactionService
             result.ImportedCount++;
         }
 
-        result.Message = $"{result.ImportedCount} Transaktion(en) erfolgreich importiert. {result.SkippedDuplicatesCount} Duplikat(e) übersprungen.";
+        result.Message = $"{result.ImportedCount} Transaktion(en) erfolgreich importiert. {result.SkippedDuplicatesCount} Duplikat(e) übersprungen. {result.SkippedErrorsCount} fehlerhafte Zeile(n) übersprungen.";
         return result;
     }
 

@@ -102,20 +102,24 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
               <p className="text-xs text-emerald-200 mt-1">{result.message}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-dark-800 border border-dark-700 rounded-xl">
-                <span className="text-dark-400 block">Neu importiert</span>
+            <div className="grid grid-cols-3 gap-2.5 text-xs">
+              <div className="p-3 bg-dark-800 border border-dark-700 rounded-xl text-center">
+                <span className="text-dark-400 block text-[11px]">Importiert</span>
                 <span className="text-lg font-bold text-emerald-400">{result.importedCount}</span>
               </div>
-              <div className="p-3 bg-dark-800 border border-dark-700 rounded-xl">
-                <span className="text-dark-400 block">Duplikate übersprungen</span>
+              <div className="p-3 bg-dark-800 border border-dark-700 rounded-xl text-center">
+                <span className="text-dark-400 block text-[11px]">Duplikate</span>
                 <span className="text-lg font-bold text-amber-400">{result.skippedDuplicatesCount}</span>
+              </div>
+              <div className="p-3 bg-dark-800 border border-dark-700 rounded-xl text-center">
+                <span className="text-dark-400 block text-[11px]">Fehlerhaft</span>
+                <span className="text-lg font-bold text-red-400">{result.skippedErrorsCount || 0}</span>
               </div>
             </div>
 
             {result.errors && result.errors.length > 0 && (
-              <div className="p-3 bg-dark-800 border border-dark-700 rounded-xl max-h-32 overflow-y-auto text-xs text-red-400 space-y-1">
-                <span className="font-semibold block mb-1">Warnungen / Fehler:</span>
+              <div className="p-3 bg-dark-800 border border-dark-700 rounded-xl max-h-36 overflow-y-auto text-xs text-red-400 space-y-1">
+                <span className="font-semibold block mb-1">Übersprungene Zeilen / Fehler:</span>
                 {result.errors.map((err, idx) => (
                   <p key={idx}>• {err}</p>
                 ))}
@@ -184,7 +188,7 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
               <div>
                 <span className="text-xs font-medium text-white block">Beispiel-Vorlage herunterladen</span>
                 <span className="text-[11px] text-dark-400 block">
-                  Vorbereitetes Schema für {format.toUpperCase()} (Spalte <strong className="text-dark-300">Id</strong> ist optional)
+                  Enthält Type (Income/Expense) & ExpenseType (Fixed/Variable)
                 </span>
               </div>
               <button
@@ -219,7 +223,7 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
                         Klicke zum Auswählen der {format.toUpperCase()}-Datei
                       </span>
                       <span className="text-[11px] text-dark-400 block mt-0.5">
-                        Spalten: Date, Amount, CategoryName, Note (Id optional)
+                        Spalten: Date, Amount, CategoryName, Type, ExpenseType, Note
                       </span>
                     </div>
                   )}

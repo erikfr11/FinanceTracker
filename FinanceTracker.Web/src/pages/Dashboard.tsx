@@ -56,7 +56,38 @@ export default function Dashboard() {
     color: isDark ? '#e2e8f0' : '#0f172a',
   };
 
-  const { apiFilter } = useFilter();
+  const {
+    periodPreset,
+    selectedYear,
+    selectedMonth,
+    customStartDate,
+    customEndDate,
+    apiFilter,
+  } = useFilter();
+
+  const timeframeLabel = useMemo(() => {
+    if (periodPreset === 'currentYear') {
+      return `Aktuelles Jahr (${selectedYear})`;
+    }
+    if (periodPreset === 'specificYear') {
+      return `Jahr ${selectedYear}`;
+    }
+    if (periodPreset === 'specificMonth') {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const mName = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1));
+      return mName;
+    }
+    if (periodPreset === 'customRange') {
+      if (customStartDate && customEndDate) {
+        const d1 = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(customStartDate));
+        const d2 = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(customEndDate));
+        return `${d1} – ${d2}`;
+      }
+      return 'Individueller Zeitraum';
+    }
+    return '';
+  }, [periodPreset, selectedYear, selectedMonth, customStartDate, customEndDate]);
+
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -111,8 +142,6 @@ export default function Dashboard() {
     loadData();
   }, [loadData]);
 
-
-
   const incomeTotal = useMemo(() => {
     return transactions
       .filter((t) => t.categoryType === 'Income')
@@ -128,30 +157,88 @@ export default function Dashboard() {
   const balance = incomeTotal - expenseTotal;
   const txCount = transactions.length;
 
-  // Bar chart data for 12 months
+  // Dynamic chart data (bar & line) matching selected timeframe filter
   const barData = useMemo(() => {
-    const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-    const monthlyStats = Array.from({ length: 12 }, (_, i) => ({
-      name: monthNames[i],
-      Einnahmen: 0,
-      Ausgaben: 0,
-    }));
+    if (transactions.length === 0) return [];
+
+    let start = apiFilter.startDate ? new Date(apiFilter.startDate) : null;
+    let end = apiFilter.endDate ? new Date(apiFilter.endDate) : null;
+
+    if (!start || !end) {
+      const dates = transactions.map((t) => new Date(t.date)).filter((d) => !isNaN(d.getTime()));
+      if (dates.length > 0) {
+        if (!start) start = new Date(Math.min(...dates.map((d) => d.getTime())));
+        if (!end) end = new Date(Math.max(...dates.map((d) => d.getTime())));
+      }
+    }
+
+    const diffDays = start && end ? Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1 : 365;
+
+    // Daily buckets if selected timeframe is <= 35 days (e.g. single month or custom range like 10. Jun - 03. Jul)
+    if (diffDays <= 35 && start && end) {
+      const dayMap = new Map<string, { name: string; Einnahmen: number; Ausgaben: number }>();
+      const curr = new Date(start);
+      const isSingleMonth = periodPreset === 'specificMonth';
+
+      while (curr <= end) {
+        const isoKey = curr.toISOString().substring(0, 10);
+        // Requirement 3: Only day number when single month is selected
+        const name = isSingleMonth
+          ? String(curr.getDate())
+          : new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' }).format(curr);
+
+        dayMap.set(isoKey, { name, Einnahmen: 0, Ausgaben: 0 });
+        curr.setDate(curr.getDate() + 1);
+      }
+
+      transactions.forEach((t) => {
+        if (t.date) {
+          const key = t.date.substring(0, 10);
+          if (dayMap.has(key)) {
+            const item = dayMap.get(key)!;
+            if (t.categoryType === 'Income') item.Einnahmen += t.amount;
+            else item.Ausgaben += t.amount;
+          }
+        }
+      });
+
+      return Array.from(dayMap.values());
+    }
+
+    // Monthly buckets for longer timeframes
+    const monthMap = new Map<string, { name: string; Einnahmen: number; Ausgaben: number }>();
+
+    if (start && end) {
+      const curr = new Date(start.getFullYear(), start.getMonth(), 1);
+      const last = new Date(end.getFullYear(), end.getMonth(), 1);
+      while (curr <= last) {
+        const key = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}`;
+        const name = new Intl.DateTimeFormat('de-DE', { month: 'short', year: '2-digit' }).format(curr);
+        monthMap.set(key, { name, Einnahmen: 0, Ausgaben: 0 });
+        curr.setMonth(curr.getMonth() + 1);
+      }
+    }
 
     transactions.forEach((t) => {
       if (t.date) {
-        const monthIdx = parseInt(t.date.substring(5, 7), 10) - 1;
-        if (monthIdx >= 0 && monthIdx < 12) {
-          if (t.categoryType === 'Income') {
-            monthlyStats[monthIdx].Einnahmen += t.amount;
-          } else {
-            monthlyStats[monthIdx].Ausgaben += t.amount;
-          }
+        const key = t.date.substring(0, 7);
+        if (!monthMap.has(key)) {
+          const d = new Date(t.date);
+          const name = !isNaN(d.getTime())
+            ? new Intl.DateTimeFormat('de-DE', { month: 'short', year: '2-digit' }).format(d)
+            : key;
+          monthMap.set(key, { name, Einnahmen: 0, Ausgaben: 0 });
         }
+        const item = monthMap.get(key)!;
+        if (t.categoryType === 'Income') item.Einnahmen += t.amount;
+        else item.Ausgaben += t.amount;
       }
     });
 
-    return monthlyStats;
-  }, [transactions]);
+    return Array.from(monthMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map((entry) => entry[1]);
+  }, [transactions, apiFilter, periodPreset]);
 
   // Line chart data & dynamic SVG gradient offset for positive (green) vs negative (red)
   const { lineData, gradientOffset } = useMemo(() => {
@@ -294,13 +381,20 @@ export default function Dashboard() {
             <div className="lg:col-span-2 bg-dark-900 border border-dark-800 rounded-2xl p-6 flex flex-col justify-between">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    {chartType === 'bar' ? 'Einnahmen vs. Ausgaben' : 'Monatsbilanz-Verlauf'}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-white">
+                      {chartType === 'bar' ? 'Einnahmen vs. Ausgaben' : 'Monatsbilanz-Verlauf'}
+                    </h3>
+                    {timeframeLabel && (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-dark-800 border border-dark-700 text-xs text-primary-400 font-semibold">
+                        {timeframeLabel}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-dark-400 mt-0.5">
                     {chartType === 'bar'
-                      ? 'Monatlicher Vergleich aller Einnahmen und Ausgaben'
-                      : 'Nettobilanz pro Monat (Grün = Positiv, Rot = Negativ)'}
+                      ? 'Vergleich aller Einnahmen und Ausgaben im gewählten Zeitraum'
+                      : 'Nettobilanz-Verlauf (Grün = Positiv, Rot = Negativ)'}
                   </p>
                 </div>
 
@@ -335,18 +429,35 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {chartType === 'bar' ? (
+              {barData.length === 0 ? (
+                <div className="h-[300px] flex flex-col items-center justify-center text-dark-400 text-sm py-12">
+                  <BarChart3 className="h-10 w-10 opacity-30 text-primary-400 mb-2" />
+                  <span className="font-medium text-white">Keine Transaktionen im ausgewählten Zeitraum</span>
+                  <span className="text-xs text-dark-400 mt-1">Passe den Filter an oder lege neue Transaktionen an.</span>
+                </div>
+              ) : chartType === 'bar' ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={barData} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                     <XAxis dataKey="name" tick={{ fill: axisTextColor, fontSize: 12 }} />
                     <YAxis tick={{ fill: axisTextColor, fontSize: 12 }} />
                     <Tooltip
+                      cursor={false}
                       contentStyle={tooltipStyle}
                       formatter={(value: number) => fmt(value)}
                     />
-                    <Bar dataKey="Einnahmen" fill="#10b981" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="Ausgaben" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                    <Bar
+                      dataKey="Einnahmen"
+                      fill="#10b981"
+                      radius={[6, 6, 0, 0]}
+                      activeBar={{ fillOpacity: 0.85, stroke: isDark ? '#ffffff' : '#0f172a', strokeWidth: 1.5 }}
+                    />
+                    <Bar
+                      dataKey="Ausgaben"
+                      fill="#ef4444"
+                      radius={[6, 6, 0, 0]}
+                      activeBar={{ fillOpacity: 0.85, stroke: isDark ? '#ffffff' : '#0f172a', strokeWidth: 1.5 }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -365,6 +476,7 @@ export default function Dashboard() {
                     <YAxis tick={{ fill: axisTextColor, fontSize: 12 }} />
                     <ReferenceLine y={0} stroke={axisTextColor} strokeDasharray="3 3" />
                     <Tooltip
+                      cursor={false}
                       contentStyle={tooltipStyle}
                       formatter={(value: number) => [fmt(value), 'Monatsbilanz']}
                     />
@@ -381,14 +493,14 @@ export default function Dashboard() {
                             key={`dot-${index}`}
                             cx={cx}
                             cy={cy}
-                            r={5}
+                            r={4}
                             fill={isPos ? '#10b981' : '#ef4444'}
                             stroke={isDark ? '#0f172a' : '#ffffff'}
                             strokeWidth={2}
                           />
                         );
                       }}
-                      activeDot={{ r: 7 }}
+                      activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 3 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

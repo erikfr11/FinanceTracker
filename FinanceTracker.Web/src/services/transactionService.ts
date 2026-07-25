@@ -139,6 +139,7 @@ export interface TransactionImportResultDto {
   totalRead: number;
   importedCount: number;
   skippedDuplicatesCount: number;
+  skippedErrorsCount?: number;
   errors: string[];
   message: string;
 }

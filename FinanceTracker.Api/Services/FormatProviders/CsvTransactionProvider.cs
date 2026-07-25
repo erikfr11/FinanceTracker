@@ -25,6 +25,8 @@ public class CsvTransactionProvider : ITransactionFormatProvider
             Date = t.Date.ToString("yyyy-MM-dd"),
             Amount = t.Amount.ToString("F2", CultureInfo.InvariantCulture),
             CategoryName = t.CategoryName,
+            Type = t.CategoryType,               // "Income" or "Expense"
+            ExpenseType = t.CategoryExpenseType, // "Fixed", "Variable", "None"
             Note = t.Note ?? string.Empty
         });
 
@@ -72,6 +74,8 @@ public class CsvTransactionProvider : ITransactionFormatProvider
                 decimal.TryParse(amountStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var amount);
 
                 var categoryName = csv.GetField<string>("categoryname") ?? csv.GetField<string>("category") ?? string.Empty;
+                var type = csv.GetField<string>("type") ?? csv.GetField<string>("categorytype") ?? string.Empty;
+                var expenseType = csv.GetField<string>("expensetype") ?? csv.GetField<string>("categoryexpensetype") ?? string.Empty;
                 var note = csv.GetField<string>("note") ?? csv.GetField<string>("description") ?? string.Empty;
 
                 results.Add(new TransactionImportDto
@@ -80,6 +84,8 @@ public class CsvTransactionProvider : ITransactionFormatProvider
                     Date = date,
                     Amount = amount,
                     CategoryName = categoryName.Trim(),
+                    Type = type.Trim(),
+                    ExpenseType = expenseType.Trim(),
                     Note = note.Trim()
                 });
             }
@@ -95,9 +101,10 @@ public class CsvTransactionProvider : ITransactionFormatProvider
     public async Task<byte[]> GenerateTemplateAsync()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Date;Amount;CategoryName;Note");
-        sb.AppendLine($"{DateTime.UtcNow:yyyy-MM-dd};85.50;Lebensmittel;Wocheneinkauf Supermarkt");
-        sb.AppendLine($"{DateTime.UtcNow:yyyy-MM-dd};2500.00;Gehalt;Monatsgehalt");
+        sb.AppendLine("Date;Amount;CategoryName;Type;ExpenseType;Note");
+        sb.AppendLine($"{DateTime.UtcNow:yyyy-MM-dd};85.50;Lebensmittel;Expense;Variable;Wocheneinkauf Supermarkt");
+        sb.AppendLine($"{DateTime.UtcNow:yyyy-MM-dd};2500.00;Gehalt;Income;None;Monatsgehalt");
+        sb.AppendLine($"{DateTime.UtcNow:yyyy-MM-dd};850.00;Miete;Expense;Fixed;Wohnungsmiete");
 
         return await Task.FromResult(Encoding.UTF8.GetBytes(sb.ToString()));
     }
