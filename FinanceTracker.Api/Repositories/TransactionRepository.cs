@@ -22,9 +22,9 @@ public class TransactionRepository : ITransactionRepository
         return await _transactionDao.GetByIdAsync(id);
     }
 
-    public async Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, int? categoryId = null, string? type = null)
+    public async Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, int? categoryId = null, string? type = null, string? searchTerm = null, decimal? minAmount = null, decimal? maxAmount = null)
     {
-        return await _transactionDao.GetByUserIdAsync(userId, startDate, endDate, categoryId, type);
+        return await _transactionDao.GetByUserIdAsync(userId, startDate, endDate, categoryId, type, searchTerm, minAmount, maxAmount);
     }
 
     public async Task<Transaction> AddAsync(Transaction transaction)

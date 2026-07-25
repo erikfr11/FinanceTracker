@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using FinanceTracker.Api.Data;
 using FinanceTracker.Api.Models;
 
+// Enable legacy timestamp behavior for Npgsql / PostgreSQL DateTime handling
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ────────────────────────────────────────────────────────
@@ -10,6 +13,8 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 {
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"));
+
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 
     if (builder.Environment.IsDevelopment())
     {
@@ -63,7 +68,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddOpenApi();
 
 var app = builder.Build();

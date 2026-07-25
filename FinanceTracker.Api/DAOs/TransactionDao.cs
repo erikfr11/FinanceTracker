@@ -26,7 +26,7 @@ public class TransactionDao : ITransactionDao
             .FirstOrDefaultAsync(t => t.Id == id);
     }
 
-    public async Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, int? categoryId = null, string? type = null)
+    public async Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, int? categoryId = null, string? type = null, string? searchTerm = null, decimal? minAmount = null, decimal? maxAmount = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var query = context.Transactions
@@ -35,10 +35,20 @@ public class TransactionDao : ITransactionDao
             .AsQueryable();
 
         if (startDate.HasValue)
-            query = query.Where(t => t.Date >= startDate.Value);
+        {
+            var sDate = startDate.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(startDate.Value, DateTimeKind.Utc)
+                : startDate.Value.ToUniversalTime();
+            query = query.Where(t => t.Date >= sDate);
+        }
         
         if (endDate.HasValue)
-            query = query.Where(t => t.Date <= endDate.Value);
+        {
+            var eDate = endDate.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(endDate.Value, DateTimeKind.Utc)
+                : endDate.Value.ToUniversalTime();
+            query = query.Where(t => t.Date <= eDate);
+        }
 
         if (categoryId.HasValue)
             query = query.Where(t => t.CategoryId == categoryId.Value);
@@ -46,21 +56,53 @@ public class TransactionDao : ITransactionDao
         if (!string.IsNullOrEmpty(type) && Enum.TryParse<FinanceTracker.Api.Models.Enums.CategoryType>(type, true, out var parsedType))
             query = query.Where(t => t.Category.Type == parsedType);
 
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim().ToLower();
+            query = query.Where(t => (t.Note != null && t.Note.ToLower().Contains(term)) || (t.Category != null && t.Category.Name.ToLower().Contains(term)));
+        }
+
+        if (minAmount.HasValue)
+            query = query.Where(t => t.Amount >= minAmount.Value);
+
+        if (maxAmount.HasValue)
+            query = query.Where(t => t.Amount <= maxAmount.Value);
+
         return await query.OrderByDescending(t => t.Date).ToListAsync();
     }
 
     public async Task<Transaction> AddAsync(Transaction transaction)
     {
+        if (transaction.Id == Guid.Empty)
+        {
+            transaction.Id = Guid.NewGuid();
+        }
+
         await using var context = await _contextFactory.CreateDbContextAsync();
         context.Transactions.Add(transaction);
-        await context.SaveChangesAsync();
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new ArgumentException($"Fehler beim Speichern in der Datenbank: {ex.InnerException?.Message ?? ex.Message}", ex);
+        }
         return transaction;
     }
 
     public async Task AddRangeAsync(IEnumerable<Transaction> transactions)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        await context.Transactions.AddRangeAsync(transactions);
+        var list = transactions.ToList();
+        foreach (var t in list)
+        {
+            if (t.Id == Guid.Empty)
+            {
+                t.Id = Guid.NewGuid();
+            }
+        }
+        await context.Transactions.AddRangeAsync(list);
         await context.SaveChangesAsync();
     }
 

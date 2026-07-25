@@ -38,7 +38,7 @@ public class CategoriesController : ControllerBase
         return Ok(categories);
     }
 
-    [HttpGet("{id:int}")]
+    [HttpGet("{id:int}", Name = "GetCategoryById")]
     public async Task<ActionResult<CategoryResponseDto>> GetById(int id)
     {
         var userId = GetUserId();
@@ -54,8 +54,15 @@ public class CategoriesController : ControllerBase
         var userId = GetUserId();
         var isAdmin = IsAdmin();
         
-        var created = await _categoryService.AddAsync(userId, isAdmin, dto);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        try
+        {
+            var created = await _categoryService.AddAsync(userId, isAdmin, dto);
+            return CreatedAtRoute("GetCategoryById", new { id = created.Id }, created);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
     }
 
     [HttpPost("bulk")]

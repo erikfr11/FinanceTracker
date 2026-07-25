@@ -52,10 +52,15 @@ public class FinanceModelFactory : IFinanceModelFactory
 
     public Transaction CreateTransaction(decimal amount, DateTime date, int categoryId, Guid userId, string? note = null)
     {
+        var utcDate = date.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(date, DateTimeKind.Utc)
+            : date.ToUniversalTime();
+
         var transaction = new Transaction
         {
+            Id = Guid.NewGuid(),
             Amount = amount,
-            Date = date,
+            Date = utcDate,
             CategoryId = categoryId,
             UserId = userId,
             Note = note

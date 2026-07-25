@@ -8,7 +8,7 @@ namespace FinanceTracker.Api.Repositories.Interfaces;
 public interface ITransactionRepository
 {
     Task<Transaction?> GetByIdAsync(Guid id);
-    Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, int? categoryId = null, string? type = null);
+    Task<IEnumerable<Transaction>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, int? categoryId = null, string? type = null, string? searchTerm = null, decimal? minAmount = null, decimal? maxAmount = null);
     Task<Transaction> AddAsync(Transaction transaction);
     Task AddRangeAsync(IEnumerable<Transaction> transactions);
     Task UpdateAsync(Transaction transaction);

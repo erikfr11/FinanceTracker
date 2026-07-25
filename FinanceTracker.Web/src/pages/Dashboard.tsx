@@ -24,9 +24,12 @@ import {
   AlertTriangle,
   BarChart3,
   LineChart as LineChartIcon,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useFilter } from '../context/FilterContext';
 import {
   type TransactionDto,
   type TransactionCreateDto,
@@ -35,9 +38,9 @@ import {
 } from '../services/transactionService';
 import { type CategoryDto, fetchCategories } from '../services/categoryService';
 import KpiCard from '../components/dashboard/KpiCard';
-import PeriodSelector from '../components/dashboard/PeriodSelector';
 import ExportDropdown from '../components/dashboard/ExportDropdown';
 import NewTransactionModal from '../components/transactions/NewTransactionModal';
+import AdvancedFilterBar from '../components/filters/AdvancedFilterBar';
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
@@ -54,15 +57,36 @@ export default function Dashboard() {
     color: isDark ? '#e2e8f0' : '#0f172a',
   };
 
+  const { apiFilter } = useFilter();
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    new Date().toISOString().substring(0, 7) // e.g. "2026-07"
-  );
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedDate = useMemo(() => {
+    return new Intl.DateTimeFormat('de-DE', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(currentTime);
+  }, [currentTime]);
+
+  const formattedTime = useMemo(() => {
+    return new Intl.DateTimeFormat('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(currentTime);
+  }, [currentTime]);
 
   // Chart type toggle: 'bar' (Income vs Expense) or 'line' (Net Balance trend)
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
@@ -72,7 +96,7 @@ export default function Dashboard() {
     setError(null);
     try {
       const [txData, catData] = await Promise.all([
-        fetchTransactions(),
+        fetchTransactions(apiFilter),
         fetchCategories(),
       ]);
       setTransactions(txData);
@@ -82,74 +106,40 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apiFilter]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Generate available months dynamically from transactions data or past months
-  const months = useMemo(() => {
-    const map = new Map<string, string>();
-    const monthFormatter = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
 
-    // Always include current month
-    const now = new Date();
-    const currentKey = now.toISOString().substring(0, 7);
-    map.set(currentKey, monthFormatter.format(now));
-
-    // Include months from transactions
-    transactions.forEach((t) => {
-      if (t.date) {
-        const key = t.date.substring(0, 7);
-        const d = new Date(t.date);
-        if (!isNaN(d.getTime())) {
-          map.set(key, monthFormatter.format(d));
-        }
-      }
-    });
-
-    const result = Array.from(map.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => b.value.localeCompare(a.value));
-
-    return result;
-  }, [transactions]);
-
-  // Filter transactions by selected month
-  const monthTransactions = useMemo(() => {
-    return transactions.filter((t) => t.date && t.date.substring(0, 7) === selectedMonth);
-  }, [transactions, selectedMonth]);
 
   const incomeTotal = useMemo(() => {
-    return monthTransactions
+    return transactions
       .filter((t) => t.categoryType === 'Income')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [monthTransactions]);
+  }, [transactions]);
 
   const expenseTotal = useMemo(() => {
-    return monthTransactions
+    return transactions
       .filter((t) => t.categoryType === 'Expense')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [monthTransactions]);
+  }, [transactions]);
 
   const balance = incomeTotal - expenseTotal;
-  const txCount = monthTransactions.length;
+  const txCount = transactions.length;
 
-  const [year] = selectedMonth.split('-').map(Number);
-
-  // Bar chart data for the current year
+  // Bar chart data for 12 months
   const barData = useMemo(() => {
     const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
     const monthlyStats = Array.from({ length: 12 }, (_, i) => ({
       name: monthNames[i],
-      monthKey: `${year}-${String(i + 1).padStart(2, '0')}`,
       Einnahmen: 0,
       Ausgaben: 0,
     }));
 
     transactions.forEach((t) => {
-      if (t.date && t.date.startsWith(String(year))) {
+      if (t.date) {
         const monthIdx = parseInt(t.date.substring(5, 7), 10) - 1;
         if (monthIdx >= 0 && monthIdx < 12) {
           if (t.categoryType === 'Income') {
@@ -162,7 +152,7 @@ export default function Dashboard() {
     });
 
     return monthlyStats;
-  }, [transactions, year]);
+  }, [transactions]);
 
   // Line chart data & dynamic SVG gradient offset for positive (green) vs negative (red)
   const { lineData, gradientOffset } = useMemo(() => {
@@ -191,7 +181,7 @@ export default function Dashboard() {
   const pieData = useMemo(() => {
     const catMap = new Map<string, number>();
 
-    monthTransactions
+    transactions
       .filter((t) => t.categoryType === 'Expense')
       .forEach((t) => {
         const catName = t.categoryName || 'Sonstiges';
@@ -199,7 +189,7 @@ export default function Dashboard() {
       });
 
     return Array.from(catMap.entries()).map(([name, value]) => ({ name, value }));
-  }, [monthTransactions]);
+  }, [transactions]);
 
   // Monthly balance summary table
   const monthBalances = useMemo(() => {
@@ -207,14 +197,10 @@ export default function Dashboard() {
     const keys = Array.from(
       new Set(
         transactions
-          .filter((t) => t.date && t.date.startsWith(String(year)))
+          .filter((t) => t.date)
           .map((t) => t.date.substring(0, 7))
       )
     ).sort((a, b) => b.localeCompare(a));
-
-    if (keys.length === 0) {
-      keys.push(selectedMonth);
-    }
 
     return keys.map((key) => {
       const [y, m] = key.split('-').map(Number);
@@ -230,7 +216,7 @@ export default function Dashboard() {
         balance: inc - exp,
       };
     });
-  }, [transactions, year, selectedMonth]);
+  }, [transactions]);
 
   const handleCreateTransaction = async (dto: TransactionCreateDto) => {
     await createTransaction(dto);
@@ -247,10 +233,20 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-white">Hallo, {user?.firstName}! 👋</h1>
           <p className="text-sm text-dark-400 mt-1">Hier ist dein aktueller Finanzüberblick.</p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          {months.length > 0 && (
-            <PeriodSelector options={months} selected={selectedMonth} onChange={setSelectedMonth} />
-          )}
+
+        {/* Live Date & Time Badge */}
+        <div className="flex items-center gap-2.5 bg-dark-800/90 border border-dark-700/80 px-4 py-2 rounded-xl text-xs shadow-inner self-start lg:self-auto">
+          <div className="flex items-center gap-1.5 text-dark-200 font-medium border-r border-dark-700/80 pr-3">
+            <Calendar className="h-3.5 w-3.5 text-primary-400" />
+            <span>{formattedDate}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-emerald-400 font-mono font-bold pl-1">
+            <Clock className="h-3.5 w-3.5 animate-pulse" />
+            <span>{formattedTime} Uhr</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
           <ExportDropdown />
           <button
             onClick={() => setIsModalOpen(true)}
@@ -261,6 +257,8 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      <AdvancedFilterBar categories={categories} />
 
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm flex items-center justify-between">
@@ -299,7 +297,7 @@ export default function Dashboard() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-white">
-                    {chartType === 'bar' ? `Einnahmen vs. Ausgaben (${year})` : `Monatsbilanz-Verlauf (${year})`}
+                    {chartType === 'bar' ? 'Einnahmen vs. Ausgaben' : 'Monatsbilanz-Verlauf'}
                   </h3>
                   <p className="text-xs text-dark-400 mt-0.5">
                     {chartType === 'bar'
@@ -378,12 +376,11 @@ export default function Dashboard() {
                       stroke="url(#balanceLineGradient)"
                       strokeWidth={3}
                       dot={(props: any) => {
-                        const { cx, cy, payload } = props;
-                        if (cx === undefined || cy === undefined) return null;
-                        const isPos = payload.Bilanz >= 0;
+                        const { cx, cy, payload, index } = props;
+                        const isPos = payload && payload.Bilanz >= 0;
                         return (
                           <circle
-                            key={`dot-${props.index}`}
+                            key={`dot-${index}`}
                             cx={cx}
                             cy={cy}
                             r={5}
@@ -437,7 +434,7 @@ export default function Dashboard() {
 
           {/* Bilanzen-Übersicht */}
           <div className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Monatsbilanzen {year}</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Monatsbilanzen</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -452,8 +449,7 @@ export default function Dashboard() {
                   {monthBalances.map((b) => (
                     <tr
                       key={b.month}
-                      className="border-b border-dark-800 hover:bg-dark-800/50 transition-colors cursor-pointer"
-                      onClick={() => setSelectedMonth(b.month)}
+                      className="border-b border-dark-800 hover:bg-dark-800/50 transition-colors"
                     >
                       <td className="py-3 px-4 text-white font-medium">{b.label}</td>
                       <td className="py-3 px-4 text-right text-emerald-400">{fmt(b.income)}</td>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Tag, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useFilter } from '../context/FilterContext';
 import {
   type TransactionDto,
   type TransactionCreateDto,
@@ -15,10 +16,11 @@ import TransactionTable from '../components/transactions/TransactionTable';
 import NewTransactionModal from '../components/transactions/NewTransactionModal';
 import CategoryManagementModal from '../components/categories/CategoryManagementModal';
 import ExportDropdown from '../components/dashboard/ExportDropdown';
-import CustomSelect from '../components/ui/CustomSelect';
+import AdvancedFilterBar from '../components/filters/AdvancedFilterBar';
 
 export default function Transactions() {
   const { user } = useAuth();
+  const { apiFilter } = useFilter();
 
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -33,14 +35,13 @@ export default function Transactions() {
 
   // Filters & Views
   const [viewMode, setViewMode] = useState<'all' | 'split'>('all');
-  const [filterType, setFilterType] = useState<'All' | 'Income' | 'Expense'>('All');
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [txData, catData] = await Promise.all([
-        fetchTransactions(),
+        fetchTransactions(apiFilter),
         fetchCategories(),
       ]);
       setTransactions(txData);
@@ -50,7 +51,7 @@ export default function Transactions() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apiFilter]);
 
   useEffect(() => {
     loadData();
@@ -86,20 +87,13 @@ export default function Transactions() {
     }
   };
 
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => {
-      if (filterType === 'All') return true;
-      return t.categoryType === filterType;
-    });
-  }, [transactions, filterType]);
-
   const incomes = useMemo(() => {
-    return filteredTransactions.filter(t => t.categoryType === 'Income');
-  }, [filteredTransactions]);
+    return transactions.filter(t => t.categoryType === 'Income');
+  }, [transactions]);
 
   const expenses = useMemo(() => {
-    return filteredTransactions.filter(t => t.categoryType === 'Expense');
-  }, [filteredTransactions]);
+    return transactions.filter(t => t.categoryType === 'Expense');
+  }, [transactions]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -130,6 +124,9 @@ export default function Transactions() {
         </div>
       </div>
 
+      {/* Advanced Filter Bar */}
+      <AdvancedFilterBar categories={categories} />
+
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -145,41 +142,24 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4 bg-dark-900 border border-dark-800 p-4 rounded-2xl">
-        <div className="flex bg-dark-800 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('all')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              viewMode === 'all' ? 'bg-dark-700 text-white shadow' : 'text-dark-300 hover:text-white'
-            }`}
-          >
-            Gemeinsame Liste
-          </button>
-          <button
-            onClick={() => setViewMode('split')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              viewMode === 'split' ? 'bg-dark-700 text-white shadow' : 'text-dark-300 hover:text-white'
-            }`}
-          >
-            Nach Typ getrennt
-          </button>
-        </div>
-
-        {viewMode === 'all' && (
-          <div className="w-48">
-            <CustomSelect<'All' | 'Income' | 'Expense'>
-              options={[
-                { value: 'All', label: 'Alle Typen' },
-                { value: 'Income', label: 'Nur Einnahmen' },
-                { value: 'Expense', label: 'Nur Ausgaben' },
-              ]}
-              value={filterType}
-              onChange={(val) => setFilterType(val)}
-              size="sm"
-            />
-          </div>
-        )}
+      {/* View Mode Toolbar */}
+      <div className="flex bg-dark-900 border border-dark-800 p-1.5 rounded-2xl w-fit">
+        <button
+          onClick={() => setViewMode('all')}
+          className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+            viewMode === 'all' ? 'bg-dark-700 text-white shadow' : 'text-dark-300 hover:text-white'
+          }`}
+        >
+          Gemeinsame Liste ({transactions.length})
+        </button>
+        <button
+          onClick={() => setViewMode('split')}
+          className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+            viewMode === 'split' ? 'bg-dark-700 text-white shadow' : 'text-dark-300 hover:text-white'
+          }`}
+        >
+          Nach Typ getrennt ({incomes.length} / {expenses.length})
+        </button>
       </div>
 
       {/* Loading state */}
@@ -193,7 +173,7 @@ export default function Transactions() {
         viewMode === 'all' ? (
           <div className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
             <TransactionTable
-              transactions={filteredTransactions}
+              transactions={transactions}
               onEdit={handleOpenEditModal}
               onDelete={tx => setDeletingTransaction(tx)}
             />

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { FilterProvider } from './context/FilterContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthLayout } from './components/AuthLayout';
 import AppLayout from './components/AppLayout';
@@ -30,30 +31,32 @@ function App() {
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            
-            {/* Public Landing Page */}
-            <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
+          <FilterProvider>
+            <Routes>
+              
+              {/* Public Landing Page */}
+              <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
 
-            {/* Auth Routes im AuthLayout */}
-            <Route element={<PublicRoute><AuthLayout /></PublicRoute>}>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-            </Route>
-
-            {/* Protected Routes im AppLayout */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/transactions" element={<Transactions />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/admin/users" element={<Users />} />
-                <Route path="/admin/theme" element={<ThemeSettingsPage />} />
+              {/* Auth Routes im AuthLayout */}
+              <Route element={<PublicRoute><AuthLayout /></PublicRoute>}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
               </Route>
-            </Route>
 
-          </Routes>
+              {/* Protected Routes im AppLayout */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/transactions" element={<Transactions />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/admin/users" element={<Users />} />
+                  <Route path="/admin/theme" element={<ThemeSettingsPage />} />
+                </Route>
+              </Route>
+
+            </Routes>
+          </FilterProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

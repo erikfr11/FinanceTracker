@@ -32,7 +32,7 @@ public class TransactionService : ITransactionService
 
     public async Task<IEnumerable<TransactionResponseDto>> GetTransactionsAsync(Guid userId, TransactionFilterDto filter)
     {
-        var transactions = await _repository.GetByUserIdAsync(userId, filter.StartDate, filter.EndDate, filter.CategoryId, filter.Type);
+        var transactions = await _repository.GetByUserIdAsync(userId, filter.StartDate, filter.EndDate, filter.CategoryId, filter.Type, filter.SearchTerm, filter.MinAmount, filter.MaxAmount);
         return transactions.Select(MapToResponse);
     }
 
@@ -57,8 +57,12 @@ public class TransactionService : ITransactionService
         if (transaction == null || transaction.UserId != userId)
             throw new UnauthorizedAccessException("Transaction not found or access denied.");
 
+        var utcDate = dto.Date.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(dto.Date, DateTimeKind.Utc)
+            : dto.Date.ToUniversalTime();
+
         transaction.Amount = dto.Amount;
-        transaction.Date = dto.Date;
+        transaction.Date = utcDate;
         transaction.Note = dto.Note;
         transaction.CategoryId = dto.CategoryId;
 

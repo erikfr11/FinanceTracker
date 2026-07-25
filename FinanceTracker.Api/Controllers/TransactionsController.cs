@@ -33,7 +33,7 @@ public class TransactionsController : ControllerBase
         return Ok(transactions);
     }
 
-    [HttpGet("{id:guid}")]
+    [HttpGet("{id:guid}", Name = "GetTransactionById")]
     public async Task<ActionResult<TransactionResponseDto>> GetById(Guid id)
     {
         var userId = GetUserId();
@@ -46,8 +46,19 @@ public class TransactionsController : ControllerBase
     public async Task<ActionResult<TransactionResponseDto>> Create(TransactionCreateDto dto)
     {
         var userId = GetUserId();
-        var created = await _transactionService.AddAsync(userId, dto);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        try
+        {
+            var created = await _transactionService.AddAsync(userId, dto);
+            return CreatedAtRoute("GetTransactionById", new { id = created.Id }, created);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
     }
 
     [HttpPost("bulk")]

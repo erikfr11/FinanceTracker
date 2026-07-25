@@ -41,7 +41,12 @@ export const createCategory = async (dto: CategoryCreateDto): Promise<CategoryDt
     let errorText = 'Fehler beim Erstellen der Kategorie.';
     try {
       const err = await response.json();
-      if (err.title || err.detail) errorText = err.detail || err.title;
+      if (err.errors) {
+        const messages = Object.values(err.errors).flat() as string[];
+        errorText = messages.join(' ');
+      } else if (err.detail || err.message || err.title) {
+        errorText = err.detail || err.message || err.title;
+      }
     } catch {
       // ignore
     }
