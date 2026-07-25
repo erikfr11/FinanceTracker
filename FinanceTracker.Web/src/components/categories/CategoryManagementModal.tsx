@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { X, Plus, Edit2, Trash2, AlertTriangle, Check, Tag } from 'lucide-react';
 import {
   type CategoryDto,
@@ -27,6 +27,7 @@ export default function CategoryManagementModal({
 }: CategoryManagementModalProps) {
   const [editingCategory, setEditingCategory] = useState<CategoryDto | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [filterType, setFilterType] = useState<'All' | 'Income' | 'Expense' | 'Fixed' | 'Variable'>('All');
 
   // Form state
   const [name, setName] = useState('');
@@ -38,6 +39,33 @@ export default function CategoryManagementModal({
 
   // Delete confirmation state
   const [deletingCategory, setDeletingCategory] = useState<CategoryDto | null>(null);
+
+  const filteredAndSortedCategories = useMemo(() => {
+    let list = [...categories];
+
+    if (filterType === 'Income') {
+      list = list.filter((c) => c.type === 'Income');
+    } else if (filterType === 'Expense') {
+      list = list.filter((c) => c.type === 'Expense');
+    } else if (filterType === 'Fixed') {
+      list = list.filter((c) => c.type === 'Expense' && c.expenseType === 'Fixed');
+    } else if (filterType === 'Variable') {
+      list = list.filter((c) => c.type === 'Expense' && c.expenseType === 'Variable');
+    }
+
+    return list.sort((a, b) => {
+      // Primary sort: Type (Income first)
+      if (a.type !== b.type) {
+        return a.type === 'Income' ? -1 : 1;
+      }
+      // Secondary sort for Expenses: Fixed before Variable
+      if (a.type === 'Expense' && a.expenseType !== b.expenseType) {
+        return a.expenseType === 'Fixed' ? -1 : 1;
+      }
+      // Tertiary sort: Alphabetical by name
+      return a.name.localeCompare(b.name, 'de');
+    });
+  }, [categories, filterType]);
 
   if (!isOpen) return null;
 
@@ -261,6 +289,60 @@ export default function CategoryManagementModal({
             </form>
           )}
 
+          {/* Filter Bar */}
+          <div className="flex items-center gap-1.5 flex-wrap text-xs pt-1">
+            <button
+              onClick={() => setFilterType('All')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                filterType === 'All'
+                  ? 'bg-primary-600 text-white shadow'
+                  : 'bg-dark-800 text-dark-400 hover:text-white'
+              }`}
+            >
+              Alle ({categories.length})
+            </button>
+            <button
+              onClick={() => setFilterType('Income')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                filterType === 'Income'
+                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shadow'
+                  : 'bg-dark-800 text-dark-400 hover:text-white'
+              }`}
+            >
+              💰 Einnahmen ({categories.filter((c) => c.type === 'Income').length})
+            </button>
+            <button
+              onClick={() => setFilterType('Expense')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                filterType === 'Expense'
+                  ? 'bg-red-500/20 border border-red-500/40 text-red-400 shadow'
+                  : 'bg-dark-800 text-dark-400 hover:text-white'
+              }`}
+            >
+              💸 Ausgaben ({categories.filter((c) => c.type === 'Expense').length})
+            </button>
+            <button
+              onClick={() => setFilterType('Fixed')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                filterType === 'Fixed'
+                  ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 shadow'
+                  : 'bg-dark-800 text-dark-400 hover:text-white'
+              }`}
+            >
+              📌 Fixkosten ({categories.filter((c) => c.type === 'Expense' && c.expenseType === 'Fixed').length})
+            </button>
+            <button
+              onClick={() => setFilterType('Variable')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                filterType === 'Variable'
+                  ? 'bg-blue-500/20 border border-blue-500/40 text-blue-400 shadow'
+                  : 'bg-dark-800 text-dark-400 hover:text-white'
+              }`}
+            >
+              🛒 Flexibel / Variabel ({categories.filter((c) => c.type === 'Expense' && c.expenseType === 'Variable').length})
+            </button>
+          </div>
+
           {/* List of categories */}
           <div className="overflow-x-auto border border-dark-800 rounded-xl">
             <table className="w-full text-left text-xs">
@@ -274,7 +356,7 @@ export default function CategoryManagementModal({
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-800 text-dark-200">
-                {categories.map((cat) => {
+                {filteredAndSortedCategories.map((cat) => {
                   const isIncome = cat.type === 'Income';
                   const isSonstiges = cat.name.toLowerCase() === 'sonstiges';
 
