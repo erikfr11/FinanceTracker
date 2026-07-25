@@ -19,6 +19,7 @@ export default function FixedCostModal({
   editingFixedCost,
   onSubmit,
 }: FixedCostModalProps) {
+  const [bookingType, setBookingType] = useState<'Expense' | 'Income'>('Expense');
   const [amount, setAmount] = useState('');
   const [dueDayOfMonth, setDueDayOfMonth] = useState<number>(1);
   const [frequency, setFrequency] = useState<FixedCostFrequency>('Monthly');
@@ -29,17 +30,24 @@ export default function FixedCostModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Strictly filter to Fixed Expense categories
-  const fixedCategories = useMemo(() => {
+  // Filter categories based on selected bookingType
+  const filteredCategories = useMemo(() => {
+    if (bookingType === 'Income') {
+      return categories.filter((c) => c.type === 'Income');
+    }
     const fixedOnly = categories.filter((c) => c.type === 'Expense' && c.expenseType === 'Fixed');
     return fixedOnly.length > 0 ? fixedOnly : categories.filter((c) => c.type === 'Expense');
-  }, [categories]);
+  }, [categories, bookingType]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     setError(null);
     if (editingFixedCost) {
+      const cat = categories.find((c) => c.id === editingFixedCost.categoryId);
+      const isIncome = cat?.type === 'Income' || editingFixedCost.categoryType === 'Income';
+      setBookingType(isIncome ? 'Income' : 'Expense');
+
       setAmount(editingFixedCost.amount.toString());
       setDueDayOfMonth(editingFixedCost.dueDayOfMonth || 1);
       setFrequency(editingFixedCost.frequency || 'Monthly');
@@ -52,11 +60,17 @@ export default function FixedCostModal({
       setFrequency('Monthly');
       setNote('');
       setIsActive(true);
-
-      const defaultCat = fixedCategories.find((c) => c.expenseType === 'Fixed')?.id ?? fixedCategories[0]?.id ?? 0;
-      setCategoryId(defaultCat);
     }
-  }, [isOpen, editingFixedCost, fixedCategories]);
+  }, [isOpen, editingFixedCost, categories]);
+
+  // Update selected category when bookingType or filteredCategories change
+  useEffect(() => {
+    if (!isOpen) return;
+    const currentValid = filteredCategories.some((c) => c.id === categoryId);
+    if (!currentValid && filteredCategories.length > 0) {
+      setCategoryId(filteredCategories[0].id);
+    }
+  }, [filteredCategories, categoryId, isOpen]);
 
   if (!isOpen) return null;
 
@@ -143,6 +157,35 @@ export default function FixedCostModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Type Toggle: Expense vs Income */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-dark-300">Buchungstyp</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setBookingType('Expense')}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                  bookingType === 'Expense'
+                    ? 'bg-red-500/20 border-red-500/50 text-red-400 shadow'
+                    : 'bg-dark-800 border-dark-700 text-dark-400 hover:text-white'
+                }`}
+              >
+                💸 Fixe Ausgabe (Fixkosten)
+              </button>
+              <button
+                type="button"
+                onClick={() => setBookingType('Income')}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                  bookingType === 'Income'
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow'
+                    : 'bg-dark-800 border-dark-700 text-dark-400 hover:text-white'
+                }`}
+              >
+                💰 Fixe Einnahme (z.B. Gehalt)
+              </button>
+            </div>
+          </div>
+
           {/* Note / Description */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-dark-300">Bezeichnung / Notiz</label>
@@ -152,7 +195,7 @@ export default function FixedCostModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className={inputClass}
-              placeholder="z.B. Miete, Netflix Abo, Internet..."
+              placeholder={bookingType === 'Income' ? 'z.B. Monatsgehalt, Nebenjob...' : 'z.B. Miete, Netflix, Internet...'}
             />
           </div>
 
@@ -171,14 +214,16 @@ export default function FixedCostModal({
             />
           </div>
 
-          {/* Category Dropdown (Fixkosten Only) */}
+          {/* Category Dropdown */}
           <div className="space-y-2">
-            <label className="text-xs font-medium text-dark-300">Fixkosten-Kategorie</label>
+            <label className="text-xs font-medium text-dark-300">
+              {bookingType === 'Income' ? 'Einnahmen-Kategorie' : 'Fixkosten-Kategorie'}
+            </label>
             <CustomSelect<number>
-              options={fixedCategories.map((c) => ({
+              options={filteredCategories.map((c) => ({
                 value: c.id,
                 label: c.name,
-                sublabel: 'Fixkosten',
+                sublabel: c.type === 'Income' ? 'Einnahme' : 'Fixkosten',
               }))}
               value={categoryId}
               onChange={(val) => setCategoryId(val)}
