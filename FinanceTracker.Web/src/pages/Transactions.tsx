@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, Tag, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Plus, Tag, AlertTriangle, RefreshCw, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useFilter } from '../context/FilterContext';
 import {
@@ -17,6 +17,7 @@ import NewTransactionModal from '../components/transactions/NewTransactionModal'
 import CategoryManagementModal from '../components/categories/CategoryManagementModal';
 import ExportDropdown from '../components/dashboard/ExportDropdown';
 import AdvancedFilterBar from '../components/filters/AdvancedFilterBar';
+import ImportModal from '../components/transactions/ImportModal';
 
 export default function Transactions() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ export default function Transactions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionDto | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [deletingTransaction, setDeletingTransaction] = useState<TransactionDto | null>(null);
 
   // Filters & Views
@@ -104,6 +106,13 @@ export default function Transactions() {
           <p className="text-sm text-dark-400 mt-1">Verwalte deine Einnahmen und Ausgaben.</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-700 text-white text-sm font-medium transition-colors border border-dark-700 shadow-sm"
+          >
+            <Upload className="h-4 w-4 text-emerald-400" />
+            Importieren
+          </button>
           <ExportDropdown />
           {user?.isAdmin && (
             <button
@@ -258,6 +267,13 @@ export default function Transactions() {
           </div>
         </div>
       )}
+
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={loadData}
+      />
     </div>
   );
 }

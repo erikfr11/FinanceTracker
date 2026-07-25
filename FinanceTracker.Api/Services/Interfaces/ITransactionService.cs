@@ -16,5 +16,6 @@ public interface ITransactionService
     Task DeleteBulkAsync(Guid userId, TransactionFilterDto filter);
 
     Task<byte[]> ExportAsync(Guid userId, TransactionFilterDto filter, string format);
-    Task<IEnumerable<TransactionResponseDto>> ImportAsync(Guid userId, Stream fileStream, string format);
+    Task<TransactionImportResultDto> ImportWithValidationAsync(Guid userId, Stream fileStream, string format);
+    Task<(byte[] content, string contentType, string fileName)> GetTemplateAsync(string format);
 }

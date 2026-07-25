@@ -9,6 +9,7 @@ namespace FinanceTracker.Api.Services;
 public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _repository;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly IFinanceModelFactory _modelFactory;
     private readonly IEnumerable<ITransactionFormatProvider> _formatProviders;
 
@@ -18,6 +19,7 @@ public class TransactionService : ITransactionService
         IEnumerable<ITransactionFormatProvider> formatProviders)
     {
         _repository = repositoryFactory.GetTransactionRepository();
+        _categoryRepository = repositoryFactory.GetCategoryRepository();
         _modelFactory = modelFactory;
         _formatProviders = formatProviders;
     }
@@ -57,12 +59,8 @@ public class TransactionService : ITransactionService
         if (transaction == null || transaction.UserId != userId)
             throw new UnauthorizedAccessException("Transaction not found or access denied.");
 
-        var utcDate = dto.Date.Kind == DateTimeKind.Unspecified
-            ? DateTime.SpecifyKind(dto.Date, DateTimeKind.Utc)
-            : dto.Date.ToUniversalTime();
-
         transaction.Amount = dto.Amount;
-        transaction.Date = utcDate;
+        transaction.Date = dto.Date;
         transaction.Note = dto.Note;
         transaction.CategoryId = dto.CategoryId;
 
@@ -80,7 +78,7 @@ public class TransactionService : ITransactionService
 
     public async Task DeleteBulkAsync(Guid userId, TransactionFilterDto filter)
     {
-        var transactions = await _repository.GetByUserIdAsync(userId, filter.StartDate, filter.EndDate, filter.CategoryId, filter.Type);
+        var transactions = await _repository.GetByUserIdAsync(userId, filter.StartDate, filter.EndDate, filter.CategoryId, filter.Type, filter.SearchTerm, filter.MinAmount, filter.MaxAmount);
         if (transactions.Any())
         {
             await _repository.DeleteRangeAsync(transactions);
@@ -94,14 +92,95 @@ public class TransactionService : ITransactionService
         return await provider.ExportAsync(transactions);
     }
 
-    public async Task<IEnumerable<TransactionResponseDto>> ImportAsync(Guid userId, Stream fileStream, string format)
+    public async Task<TransactionImportResultDto> ImportWithValidationAsync(Guid userId, Stream fileStream, string format)
     {
         var provider = GetProvider(format);
-        var dtos = await provider.ImportAsync(fileStream);
+        var importedRows = (await provider.ParseImportAsync(fileStream)).ToList();
 
-        // Optional duplicate checking logic could be placed here before executing bulk add.
-        // For standard requirement, we simply interpret and save.
-        return await AddBulkAsync(userId, dtos);
+        var result = new TransactionImportResultDto
+        {
+            TotalRead = importedRows.Count
+        };
+
+        if (importedRows.Count == 0)
+        {
+            result.Message = "Keine gültigen Datensätze in der Datei gefunden.";
+            return result;
+        }
+
+        var existingTransactions = (await _repository.GetByUserIdAsync(userId)).ToList();
+        var existingCategories = (await _categoryRepository.GetVisibleAsync(userId)).ToList();
+        var defaultCatId = existingCategories.FirstOrDefault(c => c.Name.Equals("Sonstiges", StringComparison.OrdinalIgnoreCase))?.Id
+                           ?? existingCategories.FirstOrDefault()?.Id ?? 10;
+
+        var existingIds = new HashSet<Guid>(existingTransactions.Select(t => t.Id));
+        var existingTuples = new HashSet<string>(
+            existingTransactions.Select(t => $"{t.Date.Date:yyyy-MM-dd}_{t.CategoryId}_{Math.Abs(t.Amount):F2}")
+        );
+
+        foreach (var row in importedRows)
+        {
+            if (row.Amount == 0 || row.Date == default)
+            {
+                result.Errors.Add($"Ungültige Zeile übersprungen: Betrag = {row.Amount}, Datum = {row.Date:yyyy-MM-dd}");
+                continue;
+            }
+
+            // Find matching category
+            var category = existingCategories.FirstOrDefault(c => c.Name.Equals(row.CategoryName, StringComparison.OrdinalIgnoreCase));
+            int categoryId;
+            if (category != null)
+            {
+                categoryId = category.Id;
+            }
+            else
+            {
+                categoryId = defaultCatId;
+                if (!string.IsNullOrWhiteSpace(row.CategoryName))
+                {
+                    result.Errors.Add($"Kategorie '{row.CategoryName}' nicht vorhanden — der Standardkategorie zugewiesen.");
+                }
+            }
+
+            var absAmount = Math.Abs(row.Amount);
+            var tupleKey = $"{row.Date.Date:yyyy-MM-dd}_{categoryId}_{absAmount:F2}";
+
+            // Primary Check: UUID
+            if (row.Id.HasValue && existingIds.Contains(row.Id.Value))
+            {
+                result.SkippedDuplicatesCount++;
+                continue;
+            }
+
+            // Secondary Check: Date + Category + Amount
+            if (existingTuples.Contains(tupleKey))
+            {
+                result.SkippedDuplicatesCount++;
+                continue;
+            }
+
+            // Valid non-duplicate transaction
+            var newId = row.Id.HasValue && row.Id.Value != Guid.Empty ? row.Id.Value : Guid.NewGuid();
+            var dateUtc = DateTime.SpecifyKind(row.Date, DateTimeKind.Utc);
+            var tx = _modelFactory.CreateTransaction(row.Amount, dateUtc, categoryId, userId, row.Note);
+            tx.Id = newId;
+
+            await _repository.AddAsync(tx);
+
+            existingIds.Add(newId);
+            existingTuples.Add(tupleKey);
+            result.ImportedCount++;
+        }
+
+        result.Message = $"{result.ImportedCount} Transaktion(en) erfolgreich importiert. {result.SkippedDuplicatesCount} Duplikat(e) übersprungen.";
+        return result;
+    }
+
+    public async Task<(byte[] content, string contentType, string fileName)> GetTemplateAsync(string format)
+    {
+        var provider = GetProvider(format);
+        var bytes = await provider.GenerateTemplateAsync();
+        return (bytes, provider.ContentType, $"Transaktionen_Vorlage{provider.FileExtension}");
     }
 
     private ITransactionFormatProvider GetProvider(string format)

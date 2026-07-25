@@ -9,5 +9,6 @@ public interface ITransactionFormatProvider
     string FileExtension { get; }
 
     Task<byte[]> ExportAsync(IEnumerable<TransactionResponseDto> transactions);
-    Task<IEnumerable<TransactionCreateDto>> ImportAsync(Stream fileStream);
+    Task<IEnumerable<TransactionImportDto>> ParseImportAsync(Stream fileStream);
+    Task<byte[]> GenerateTemplateAsync();
 }

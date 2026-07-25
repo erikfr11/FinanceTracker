@@ -131,24 +131,38 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpPost("import")]
-    public async Task<IActionResult> Import(IFormFile file, [FromQuery] string format = "csv")
+    public async Task<ActionResult<TransactionImportResultDto>> Import(IFormFile file, [FromQuery] string format = "csv")
     {
-        if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
+        if (file == null || file.Length == 0) return BadRequest(new { detail = "Bitte eine gültige Datei auswählen." });
 
         var userId = GetUserId();
         try
         {
             using var stream = file.OpenReadStream();
-            var imported = await _transactionService.ImportAsync(userId, stream, format);
-            return Ok(new { message = $"Successfully imported {imported.Count()} transactions." });
+            var result = await _transactionService.ImportWithValidationAsync(userId, stream, format);
+            return Ok(result);
+        }
+        catch (NotSupportedException ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { detail = $"Import fehlgeschlagen: {ex.Message}" });
+        }
+    }
+
+    [HttpGet("template")]
+    public async Task<IActionResult> DownloadTemplate([FromQuery] string format = "csv")
+    {
+        try
+        {
+            var (content, contentType, fileName) = await _transactionService.GetTemplateAsync(format);
+            return File(content, contentType, fileName);
         }
         catch (NotSupportedException ex)
         {
             return BadRequest(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest($"Import failed: {ex.Message}");
         }
     }
 }

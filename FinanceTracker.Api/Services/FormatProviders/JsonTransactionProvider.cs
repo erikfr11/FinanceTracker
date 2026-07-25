@@ -11,16 +11,54 @@ public class JsonTransactionProvider : ITransactionFormatProvider
     public string ContentType => "application/json";
     public string FileExtension => ".json";
 
+    private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true
+    };
+
     public async Task<byte[]> ExportAsync(IEnumerable<TransactionResponseDto> transactions)
     {
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        var json = JsonSerializer.Serialize(transactions, options);
+        var exportList = transactions.Select(t => new
+        {
+            id = t.Id,
+            date = t.Date.ToString("yyyy-MM-dd"),
+            amount = t.Amount,
+            categoryName = t.CategoryName,
+            note = t.Note ?? string.Empty
+        });
+
+        var json = JsonSerializer.Serialize(exportList, JsonOptions);
         return await Task.FromResult(Encoding.UTF8.GetBytes(json));
     }
 
-    public async Task<IEnumerable<TransactionCreateDto>> ImportAsync(Stream fileStream)
+    public async Task<IEnumerable<TransactionImportDto>> ParseImportAsync(Stream fileStream)
     {
-        var dtos = await JsonSerializer.DeserializeAsync<IEnumerable<TransactionCreateDto>>(fileStream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        return dtos ?? Enumerable.Empty<TransactionCreateDto>();
+        var list = await JsonSerializer.DeserializeAsync<List<TransactionImportDto>>(fileStream, JsonOptions);
+        return list ?? new List<TransactionImportDto>();
+    }
+
+    public async Task<byte[]> GenerateTemplateAsync()
+    {
+        var template = new[]
+        {
+            new
+            {
+                date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                amount = 85.50m,
+                categoryName = "Lebensmittel",
+                note = "Wocheneinkauf Supermarkt"
+            },
+            new
+            {
+                date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                amount = 2500.00m,
+                categoryName = "Gehalt",
+                note = "Monatsgehalt"
+            }
+        };
+
+        var json = JsonSerializer.Serialize(template, JsonOptions);
+        return await Task.FromResult(Encoding.UTF8.GetBytes(json));
     }
 }
