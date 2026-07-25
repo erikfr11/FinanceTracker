@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   BarChart3,
   LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
   Clock,
   Calendar,
 } from 'lucide-react';
@@ -40,8 +41,6 @@ import { type CategoryDto, fetchCategories } from '../services/categoryService';
 import KpiCard from '../components/dashboard/KpiCard';
 import NewTransactionModal from '../components/transactions/NewTransactionModal';
 import AdvancedFilterBar from '../components/filters/AdvancedFilterBar';
-
-const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -120,6 +119,8 @@ export default function Dashboard() {
 
   // Chart type toggle: 'bar' (Income vs Expense) or 'line' (Net Balance trend)
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  // Pie chart category toggle: 'Expense' (default) vs 'Income'
+  const [pieCategoryType, setPieCategoryType] = useState<'Expense' | 'Income'>('Expense');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -263,19 +264,19 @@ export default function Dashboard() {
     return { lineData: data, gradientOffset: offset };
   }, [barData]);
 
-  // Pie chart data for expenses by category
+  // Pie chart data for expenses or income by category
   const pieData = useMemo(() => {
     const catMap = new Map<string, number>();
 
     transactions
-      .filter((t) => t.categoryType === 'Expense')
+      .filter((t) => t.categoryType === pieCategoryType)
       .forEach((t) => {
         const catName = t.categoryName || 'Sonstiges';
         catMap.set(catName, (catMap.get(catName) || 0) + t.amount);
       });
 
     return Array.from(catMap.entries()).map(([name, value]) => ({ name, value }));
-  }, [transactions]);
+  }, [transactions, pieCategoryType]);
 
   // Monthly balance summary table
   const monthBalances = useMemo(() => {
@@ -507,12 +508,56 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Pie Chart */}
-            <div className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Ausgaben nach Kategorie</h3>
+            {/* Pie Chart (Expenses vs Incomes by Category) */}
+            <div className="bg-dark-900 border border-dark-800 rounded-2xl p-6 flex flex-col justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    {pieCategoryType === 'Expense' ? 'Ausgaben nach Kategorie' : 'Einnahmen nach Kategorie'}
+                  </h3>
+                  <p className="text-xs text-dark-400 mt-0.5">
+                    {pieCategoryType === 'Expense'
+                      ? 'Prozentuale Verteilung aller Ausgaben'
+                      : 'Prozentuale Verteilung aller Einnahmen'}
+                  </p>
+                </div>
+
+                {/* Expense vs Income Toggle Buttons */}
+                <div className="flex items-center bg-dark-800 border border-dark-700/80 p-1 rounded-xl gap-1 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setPieCategoryType('Expense')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      pieCategoryType === 'Expense'
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/40 shadow'
+                        : 'text-dark-400 hover:text-white'
+                    }`}
+                  >
+                    Ausgaben
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPieCategoryType('Income')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      pieCategoryType === 'Income'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow'
+                        : 'text-dark-400 hover:text-white'
+                    }`}
+                  >
+                    Einnahmen
+                  </button>
+                </div>
+              </div>
+
               {pieData.length === 0 ? (
-                <div className="h-[300px] flex items-center justify-center text-dark-400 text-xs">
-                  Keine Ausgaben in diesem Monat.
+                <div className="h-[300px] flex flex-col items-center justify-center text-dark-400 text-xs text-center py-12">
+                  <PieChartIcon className="h-10 w-10 opacity-30 text-primary-400 mb-2" />
+                  <span className="font-medium text-white">
+                    Keine {pieCategoryType === 'Expense' ? 'Ausgaben' : 'Einnahmen'} im ausgewählten Zeitraum
+                  </span>
+                  <span className="text-[11px] text-dark-400 mt-1">
+                    Wähle einen anderen Zeitraum oder lege neue Transaktionen an.
+                  </span>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
@@ -528,9 +573,12 @@ export default function Dashboard() {
                       paddingAngle={3}
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
-                      {pieData.map((_, i) => (
-                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                      ))}
+                      {pieData.map((_, i) => {
+                        const colors = pieCategoryType === 'Expense'
+                          ? ['#ef4444', '#f97316', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6', '#64748b']
+                          : ['#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#84cc16', '#059669', '#047857', '#14b8a6'];
+                        return <Cell key={i} fill={colors[i % colors.length]} />;
+                      })}
                     </Pie>
                     <Tooltip
                       contentStyle={tooltipStyle}
