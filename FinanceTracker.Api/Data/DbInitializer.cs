@@ -17,6 +17,17 @@ public static class DbInitializer
             var dbContext = services.GetRequiredService<AppDbContext>();
             await dbContext.Database.MigrateAsync();
 
+            try
+            {
+                await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"FixedCosts\" ADD COLUMN IF NOT EXISTS \"StartDate\" timestamp without time zone NOT NULL DEFAULT '2026-01-01 00:00:00';");
+                await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"FixedCosts\" ADD COLUMN IF NOT EXISTS \"EndDate\" timestamp without time zone NULL;");
+                await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"FixedCosts\" ALTER COLUMN \"LastGeneratedYearMonth\" TYPE character varying(50);");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Schema adjustment in DbInitializer skipped or completed with warnings.");
+            }
+
             var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
             var userManager = services.GetRequiredService<UserManager<User>>();
             var configuration = services.GetRequiredService<IConfiguration>();

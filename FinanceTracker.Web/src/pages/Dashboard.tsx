@@ -28,6 +28,8 @@ import {
   PieChart as PieChartIcon,
   Clock,
   Calendar,
+  Coins,
+  Scale,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -175,8 +177,44 @@ export default function Dashboard() {
       .reduce((sum, t) => sum + t.amount, 0);
   }, [transactions]);
 
+  // Helper to identify investment transactions (Categories or Notes containing investment keywords)
+  const isInvestmentTx = useCallback((t: TransactionDto) => {
+    const catName = (t.categoryName || '').toLowerCase();
+    const note = (t.note || '').toLowerCase();
+    return (
+      catName.includes('invest') ||
+      catName.includes('sparen') ||
+      catName.includes('aktie') ||
+      catName.includes('etf') ||
+      catName.includes('krypto') ||
+      catName.includes('depot') ||
+      catName.includes('fond') ||
+      catName.includes('börse') ||
+      note.includes('invest') ||
+      note.includes('etf') ||
+      note.includes('aktien') ||
+      note.includes('sparen')
+    );
+  }, []);
+
+  const investmentTotal = useMemo(() => {
+    return transactions
+      .filter((t) => isInvestmentTx(t))
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, isInvestmentTx]);
+
+  const investmentExpensesTotal = useMemo(() => {
+    return transactions
+      .filter((t) => t.categoryType === 'Expense' && isInvestmentTx(t))
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, isInvestmentTx]);
+
   const balance = incomeTotal - expenseTotal;
   const txCount = transactions.length;
+
+  const balanceWithoutInvestments = useMemo(() => {
+    return balance + investmentExpensesTotal;
+  }, [balance, investmentExpensesTotal]);
 
   // Dynamic chart data (bar & line) matching selected timeframe filter
   const barData = useMemo(() => {
@@ -410,10 +448,12 @@ export default function Dashboard() {
       ) : (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <KpiCard title="Einnahmen" value={fmt(incomeTotal)} icon={<TrendingUp className="h-5 w-5" />} color="green" />
             <KpiCard title="Ausgaben" value={fmt(expenseTotal)} icon={<TrendingDown className="h-5 w-5" />} color="red" />
             <KpiCard title="Bilanz" value={fmt(balance)} icon={<Wallet className="h-5 w-5" />} color={balance >= 0 ? 'blue' : 'red'} />
+            <KpiCard title="Investments" value={fmt(investmentTotal)} icon={<Coins className="h-5 w-5" />} color="purple" />
+            <KpiCard title="Bilanz (exkl. Investments)" value={fmt(balanceWithoutInvestments)} icon={<Scale className="h-5 w-5" />} color={balanceWithoutInvestments >= 0 ? 'cyan' : 'red'} />
             <KpiCard title="Transaktionen" value={String(txCount)} icon={<Receipt className="h-5 w-5" />} color="yellow" />
           </div>
 

@@ -6,6 +6,7 @@ import { de } from 'date-fns/locale';
 interface DatePickerProps {
   value: string; // ISO date string 'YYYY-MM-DD'
   onChange: (value: string) => void;
+  minDate?: Date;
   label?: string;
   disabled?: boolean;
   className?: string;
@@ -14,6 +15,7 @@ interface DatePickerProps {
 export default function DatePicker({
   value,
   onChange,
+  minDate,
   disabled = false,
   className = '',
 }: DatePickerProps) {
@@ -151,14 +153,18 @@ export default function DatePicker({
               const isSelected = isSameDay(day, selectedDate);
               const isCurrentMonth = isSameMonth(day, viewDate);
               const isToday = isSameDay(day, new Date());
+              const isDisabledDay = minDate ? day < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()) : false;
 
               return (
                 <button
                   type="button"
                   key={idx}
-                  onClick={() => handleSelectDay(day)}
+                  disabled={isDisabledDay}
+                  onClick={() => !isDisabledDay && handleSelectDay(day)}
                   className={`h-8 w-8 mx-auto flex items-center justify-center text-xs rounded-xl transition-all font-medium ${
-                    isSelected
+                    isDisabledDay
+                      ? 'opacity-30 cursor-not-allowed text-dark-600'
+                      : isSelected
                       ? 'bg-primary-600 text-white font-bold shadow-md shadow-primary-600/30'
                       : isToday
                       ? 'border border-primary-500/50 text-primary-400 hover:bg-primary-500/10'

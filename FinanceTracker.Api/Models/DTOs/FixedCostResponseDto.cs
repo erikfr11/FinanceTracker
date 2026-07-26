@@ -13,5 +13,7 @@ public class FixedCostResponseDto
     public string CategoryType { get; set; } = string.Empty;
     public string CategoryExpenseType { get; set; } = string.Empty;
     public string? LastGeneratedYearMonth { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 }

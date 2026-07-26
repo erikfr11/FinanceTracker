@@ -38,16 +38,27 @@ public class FixedCostService : IFixedCostService
 
     public async Task<FixedCostResponseDto> AddAsync(Guid userId, FixedCostCreateDto dto)
     {
+        var existingItems = await _repository.GetByUserIdAsync(userId);
+        var trimmedNote = dto.Note?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(trimmedNote) && existingItems.Any(f => string.Equals(f.Note?.Trim(), trimmedNote, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException($"Eine wiederkehrende Regel mit der Bezeichnung '{trimmedNote}' existiert bereits.");
+        }
+
+        var validStart = SanitizeStartDate(dto.StartDate, DateTime.UtcNow);
+
         var fixedCost = new FixedCost
         {
             Id = Guid.NewGuid(),
             Amount = dto.Amount,
             DueDayOfMonth = Math.Clamp(dto.DueDayOfMonth, 1, 31),
             Frequency = dto.Frequency,
-            Note = dto.Note?.Trim() ?? string.Empty,
+            Note = trimmedNote,
             IsActive = dto.IsActive,
             CategoryId = dto.CategoryId,
             UserId = userId,
+            StartDate = validStart,
+            EndDate = dto.EndDate?.Date,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -62,12 +73,23 @@ public class FixedCostService : IFixedCostService
         if (fixedCost == null || fixedCost.UserId != userId)
             throw new UnauthorizedAccessException("Fixed cost rule not found or access denied.");
 
+        var existingItems = await _repository.GetByUserIdAsync(userId);
+        var trimmedNote = dto.Note?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(trimmedNote) && existingItems.Any(f => f.Id != dto.Id && string.Equals(f.Note?.Trim(), trimmedNote, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException($"Eine wiederkehrende Regel mit der Bezeichnung '{trimmedNote}' existiert bereits.");
+        }
+
+        var validStart = SanitizeStartDate(dto.StartDate, fixedCost.CreatedAtUtc);
+
         fixedCost.Amount = dto.Amount;
         fixedCost.DueDayOfMonth = Math.Clamp(dto.DueDayOfMonth, 1, 31);
         fixedCost.Frequency = dto.Frequency;
-        fixedCost.Note = dto.Note?.Trim() ?? string.Empty;
+        fixedCost.Note = trimmedNote;
         fixedCost.IsActive = dto.IsActive;
         fixedCost.CategoryId = dto.CategoryId;
+        fixedCost.StartDate = validStart;
+        fixedCost.EndDate = dto.EndDate?.Date;
 
         await _repository.UpdateAsync(fixedCost);
     }
@@ -89,6 +111,21 @@ public class FixedCostService : IFixedCostService
 
         foreach (var fc in activeItems)
         {
+            var validStart = SanitizeStartDate(fc.StartDate, fc.CreatedAtUtc);
+            var txDate = new DateTime(today.Year, today.Month, Math.Min(fc.DueDayOfMonth, DateTime.DaysInMonth(today.Year, today.Month)), 0, 0, 0, DateTimeKind.Utc);
+
+            // 1. Enforce StartDate and EndDate bounds
+            if (txDate.Date < validStart.Date)
+                continue;
+
+            if (fc.EndDate.HasValue && txDate.Date > fc.EndDate.Value.Date)
+                continue;
+
+            // 2. Calculate months difference between candidate execution month and start date month
+            var monthsDiff = (today.Year - validStart.Year) * 12 + (today.Month - validStart.Month);
+            if (monthsDiff < 0)
+                continue;
+
             string currentKey;
             bool isDue;
             var daysInMonth = DateTime.DaysInMonth(today.Year, today.Month);
@@ -99,38 +136,34 @@ public class FixedCostService : IFixedCostService
                 case FixedCostFrequency.Weekly:
                     var calendar = System.Globalization.CultureInfo.InvariantCulture.Calendar;
                     var weekNum = calendar.GetWeekOfYear(today, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-                    currentKey = $"W-{today.Year}-{weekNum:D2}";
-                    isDue = true;
+                    currentKey = $"{today.Year:D4}-W{weekNum:D2}";
+                    isDue = today.Date >= validStart.Date;
                     break;
 
                 case FixedCostFrequency.Quarterly:
-                    var quarter = (today.Month - 1) / 3 + 1;
-                    currentKey = $"Q-{today.Year}-Q{quarter}";
-                    isDue = today.Day >= targetDueDay;
+                    currentKey = $"{today.Year:D4}-{today.Month:D2}";
+                    isDue = (monthsDiff % 3 == 0) && (today.Day >= targetDueDay);
                     break;
 
                 case FixedCostFrequency.SemiAnnually:
-                    var halfYear = (today.Month - 1) / 6 + 1;
-                    currentKey = $"H-{today.Year}-H{halfYear}";
-                    isDue = today.Day >= targetDueDay;
+                    currentKey = $"{today.Year:D4}-{today.Month:D2}";
+                    isDue = (monthsDiff % 6 == 0) && (today.Day >= targetDueDay);
                     break;
 
                 case FixedCostFrequency.Yearly:
-                    currentKey = $"Y-{today.Year}";
-                    isDue = today.Day >= targetDueDay;
+                    currentKey = $"{today.Year:D4}-{today.Month:D2}";
+                    isDue = (monthsDiff % 12 == 0) && (today.Day >= targetDueDay);
                     break;
 
                 case FixedCostFrequency.Monthly:
                 default:
-                    currentKey = $"{today.Year}-{today.Month:D2}";
+                    currentKey = $"{today.Year:D4}-{today.Month:D2}";
                     isDue = today.Day >= targetDueDay;
                     break;
             }
 
             if (isDue && fc.LastGeneratedYearMonth != currentKey)
             {
-                var txDate = new DateTime(today.Year, today.Month, targetDueDay, 0, 0, 0, DateTimeKind.Utc);
-
                 var noteText = string.IsNullOrWhiteSpace(fc.Note) ? "Fixkosten" : fc.Note;
                 var transaction = _modelFactory.CreateTransaction(fc.Amount, txDate, fc.CategoryId, fc.UserId, noteText);
 
@@ -146,8 +179,20 @@ public class FixedCostService : IFixedCostService
         return generatedCount;
     }
 
+    private static DateTime SanitizeStartDate(DateTime dt, DateTime createdAtUtc)
+    {
+        if (dt != default && dt.Year >= 2000)
+            return dt.Date;
+
+        return createdAtUtc != default && createdAtUtc.Year >= 2000
+            ? createdAtUtc.Date
+            : new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+    }
+
     private static FixedCostResponseDto MapToResponse(FixedCost f)
     {
+        var validStartDate = SanitizeStartDate(f.StartDate, f.CreatedAtUtc);
+
         return new FixedCostResponseDto
         {
             Id = f.Id,
@@ -161,6 +206,8 @@ public class FixedCostService : IFixedCostService
             CategoryType = f.Category != null ? f.Category.Type.ToString() : string.Empty,
             CategoryExpenseType = f.Category != null ? f.Category.ExpenseType.ToString() : string.Empty,
             LastGeneratedYearMonth = f.LastGeneratedYearMonth,
+            StartDate = validStartDate,
+            EndDate = f.EndDate,
             CreatedAtUtc = f.CreatedAtUtc
         };
     }

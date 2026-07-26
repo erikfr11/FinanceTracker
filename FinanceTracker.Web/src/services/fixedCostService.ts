@@ -14,6 +14,8 @@ export interface FixedCostDto {
   categoryType: string;
   categoryExpenseType: string;
   lastGeneratedYearMonth?: string;
+  startDate: string;
+  endDate?: string | null;
   createdAtUtc: string;
 }
 
@@ -24,6 +26,8 @@ export interface FixedCostCreateDto {
   note: string;
   isActive: boolean;
   categoryId: number;
+  startDate: string;
+  endDate?: string | null;
 }
 
 export interface FixedCostUpdateDto {
@@ -34,6 +38,8 @@ export interface FixedCostUpdateDto {
   note: string;
   isActive: boolean;
   categoryId: number;
+  startDate: string;
+  endDate?: string | null;
 }
 
 export const fetchFixedCosts = async (): Promise<FixedCostDto[]> => {

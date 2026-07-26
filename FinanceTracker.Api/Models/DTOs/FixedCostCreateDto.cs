@@ -20,4 +20,9 @@ public class FixedCostCreateDto
 
     [Required]
     public int CategoryId { get; set; }
+
+    [Required]
+    public DateTime StartDate { get; set; } = DateTime.UtcNow.Date;
+
+    public DateTime? EndDate { get; set; }
 }

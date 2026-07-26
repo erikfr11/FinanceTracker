@@ -51,6 +51,9 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
             entity.Property(f => f.Note)
                 .HasMaxLength(500);
 
+            entity.Property(f => f.LastGeneratedYearMonth)
+                .HasMaxLength(50);
+
             entity.Property(f => f.IsActive)
                 .HasDefaultValue(true);
 

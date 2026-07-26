@@ -42,8 +42,18 @@ public class FixedCost
     /// Tracks the last year-month (e.g. "2026-07") when a transaction was generated for this rule.
     /// Prevents duplicate generation within the same month.
     /// </summary>
-    [MaxLength(7)]
+    [MaxLength(50)]
     public string? LastGeneratedYearMonth { get; set; }
+
+    /// <summary>
+    /// The first execution date. The rule will not generate transactions before this date.
+    /// </summary>
+    public DateTime StartDate { get; set; } = DateTime.UtcNow.Date;
+
+    /// <summary>
+    /// Optional last execution date. If null, the rule runs indefinitely (unendlich).
+    /// </summary>
+    public DateTime? EndDate { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

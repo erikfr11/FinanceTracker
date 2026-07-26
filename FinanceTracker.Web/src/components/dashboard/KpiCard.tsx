@@ -7,7 +7,7 @@ interface KpiCardProps {
   icon: ReactNode;
   trend?: 'up' | 'down' | 'neutral';
   trendLabel?: string;
-  color?: 'green' | 'red' | 'blue' | 'yellow';
+  color?: 'green' | 'red' | 'blue' | 'yellow' | 'purple' | 'cyan';
 }
 
 const colorMap = {
@@ -15,6 +15,8 @@ const colorMap = {
   red: 'from-red-500/20 to-red-500/5 border-red-500/30',
   blue: 'from-primary-500/20 to-primary-500/5 border-primary-500/30',
   yellow: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
+  purple: 'from-purple-500/20 to-purple-500/5 border-purple-500/30',
+  cyan: 'from-cyan-500/20 to-cyan-500/5 border-cyan-500/30',
 };
 
 const iconBgMap = {
@@ -22,6 +24,8 @@ const iconBgMap = {
   red: 'bg-red-500/20 text-red-400',
   blue: 'bg-primary-500/20 text-primary-400',
   yellow: 'bg-amber-500/20 text-amber-400',
+  purple: 'bg-purple-500/20 text-purple-400',
+  cyan: 'bg-cyan-500/20 text-cyan-400',
 };
 
 const KpiCard = ({ title, value, icon, trend, trendLabel, color = 'blue' }: KpiCardProps) => {

@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Plus, Edit2, Calendar } from 'lucide-react';
+import { X, Plus, Edit2 } from 'lucide-react';
 import type { CategoryDto } from '../../services/categoryService';
 import type { FixedCostDto, FixedCostCreateDto, FixedCostUpdateDto, FixedCostFrequency } from '../../services/fixedCostService';
 import CustomSelect from '../ui/CustomSelect';
+import DatePicker from '../ui/DatePicker';
 
 interface FixedCostModalProps {
   isOpen: boolean;
@@ -11,6 +12,27 @@ interface FixedCostModalProps {
   editingFixedCost?: FixedCostDto | null;
   onSubmit: (dto: FixedCostCreateDto | FixedCostUpdateDto) => Promise<void>;
 }
+
+const parseIsoDate = (dateStr: string) => {
+  if (!dateStr) return new Date(NaN);
+  const cleanStr = dateStr.substring(0, 10);
+  const parts = cleanStr.split('-');
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    return new Date(y, m, d);
+  }
+  return new Date(dateStr);
+};
+
+const frequencySubtextMap: Record<FixedCostFrequency, string> = {
+  Weekly: 'Automatische Buchung wöchentlich ausführen',
+  Monthly: 'Automatische Buchung monatlich ausführen',
+  Quarterly: 'Automatische Buchung alle 3 Monate (quartalsweise) ausführen',
+  SemiAnnually: 'Automatische Buchung alle 6 Monate (halbjährlich) ausführen',
+  Yearly: 'Automatische Buchung 1x pro Jahr (jährlich) ausführen',
+};
 
 export default function FixedCostModal({
   isOpen,
@@ -26,6 +48,11 @@ export default function FixedCostModal({
   const [note, setNote] = useState('');
   const [categoryId, setCategoryId] = useState<number>(0);
   const [isActive, setIsActive] = useState(true);
+
+  // Start Date & End Date state
+  const [startDate, setStartDate] = useState(new Date().toISOString().substring(0, 10));
+  const [hasEndDate, setHasEndDate] = useState(false);
+  const [endDate, setEndDate] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,12 +81,36 @@ export default function FixedCostModal({
       setNote(editingFixedCost.note || '');
       setCategoryId(editingFixedCost.categoryId);
       setIsActive(editingFixedCost.isActive);
+
+      let initialStart = new Date().toISOString().substring(0, 10);
+      if (editingFixedCost.startDate) {
+        const d = new Date(editingFixedCost.startDate);
+        if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) {
+          initialStart = editingFixedCost.startDate.substring(0, 10);
+        }
+      }
+      setStartDate(initialStart);
+
+      let initialHasEnd = false;
+      let initialEnd = '';
+      if (editingFixedCost.endDate) {
+        const d = new Date(editingFixedCost.endDate);
+        if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) {
+          initialHasEnd = true;
+          initialEnd = editingFixedCost.endDate.substring(0, 10);
+        }
+      }
+      setHasEndDate(initialHasEnd);
+      setEndDate(initialEnd);
     } else {
       setAmount('');
       setDueDayOfMonth(1);
       setFrequency('Monthly');
       setNote('');
       setIsActive(true);
+      setStartDate(new Date().toISOString().substring(0, 10));
+      setHasEndDate(false);
+      setEndDate('');
     }
   }, [isOpen, editingFixedCost, categories]);
 
@@ -89,6 +140,30 @@ export default function FixedCostModal({
       return;
     }
 
+    // Minimum allowed start date: 1st of current month
+    const now = new Date();
+    const minAllowedStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const selectedStart = parseIsoDate(startDate);
+
+    if (!startDate || isNaN(selectedStart.getTime()) || selectedStart < minAllowedStartDate) {
+      setError('Das erste Ausführungsdatum darf nicht in vergangenen Monaten liegen (frühestens 1. des aktuellen Monats).');
+      return;
+    }
+
+    if (hasEndDate) {
+      if (!endDate) {
+        setError('Bitte ein gültiges letztes Ausführungsdatum (Enddatum) angeben.');
+        return;
+      }
+      const selectedEnd = parseIsoDate(endDate);
+      if (isNaN(selectedEnd.getTime()) || selectedEnd < selectedStart) {
+        setError('Das letzte Ausführungsdatum darf nicht vor dem ersten Ausführungsdatum liegen.');
+        return;
+      }
+    }
+
+    const finalEndDate = hasEndDate && endDate ? endDate : null;
+
     setLoading(true);
     try {
       if (editingFixedCost) {
@@ -100,6 +175,8 @@ export default function FixedCostModal({
           note: note.trim(),
           isActive,
           categoryId,
+          startDate,
+          endDate: finalEndDate,
         } as FixedCostUpdateDto);
       } else {
         await onSubmit({
@@ -109,6 +186,8 @@ export default function FixedCostModal({
           note: note.trim(),
           isActive,
           categoryId,
+          startDate,
+          endDate: finalEndDate,
         } as FixedCostCreateDto);
       }
       onClose();
@@ -270,10 +349,67 @@ export default function FixedCostModal({
                 className="w-16 px-2 py-1.5 bg-dark-800 border border-dark-700 rounded-lg text-white text-center text-xs outline-none"
               />
             </div>
-            <p className="text-[11px] text-dark-400 flex items-center gap-1 mt-1">
-              <Calendar className="h-3 w-3 text-primary-400" />
-              Standard ist der 1. Tag des Monats.
-            </p>
+          </div>
+
+          {/* Erstes Ausführungsdatum (Pflichtfeld) */}
+          <div className="space-y-2 pt-2 border-t border-dark-800">
+            <label className="text-xs font-medium text-dark-300 flex items-center justify-between">
+              <span>
+                Erstes Ausführungsdatum <span className="text-red-400 font-bold">*</span>
+              </span>
+              <span className="text-[10px] text-dark-400 font-normal">Frühestens 1. des aktuellen Monats</span>
+            </label>
+            <DatePicker
+              value={startDate}
+              minDate={new Date(new Date().getFullYear(), new Date().getMonth(), 1)}
+              onChange={(val) => setStartDate(val)}
+            />
+          </div>
+
+          {/* Letztes Ausführungsdatum (Optional / Default Unendlich) */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-dark-300 block">Laufzeit / Letztes Ausführungsdatum</label>
+            <div className="grid grid-cols-2 gap-2 bg-dark-800 p-1 rounded-xl border border-dark-700">
+              <button
+                type="button"
+                onClick={() => setHasEndDate(false)}
+                className={`py-2 px-2.5 rounded-lg text-xs font-medium transition-all ${
+                  !hasEndDate
+                    ? 'bg-primary-600 text-white shadow'
+                    : 'text-dark-400 hover:text-white'
+                }`}
+              >
+                ♾️ Unendlich
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setHasEndDate(true);
+                  if (!endDate) {
+                    const nextYear = new Date();
+                    nextYear.setFullYear(nextYear.getFullYear() + 1);
+                    setEndDate(nextYear.toISOString().substring(0, 10));
+                  }
+                }}
+                className={`py-2 px-2.5 rounded-lg text-xs font-medium transition-all ${
+                  hasEndDate
+                    ? 'bg-primary-600 text-white shadow'
+                    : 'text-dark-400 hover:text-white'
+                }`}
+              >
+                📅 Enddatum festlegen
+              </button>
+            </div>
+
+            {hasEndDate && (
+              <div className="pt-2 animate-in fade-in duration-150">
+                <DatePicker
+                  value={endDate}
+                  minDate={new Date(startDate)}
+                  onChange={(val) => setEndDate(val)}
+                />
+              </div>
+            )}
           </div>
 
           {/* Is Active Toggle */}
@@ -281,7 +417,7 @@ export default function FixedCostModal({
             <div>
               <span className="text-xs font-medium text-white block">Regel aktiv</span>
               <span className="text-[11px] text-dark-400 block">
-                Automatische Buchung monatlich ausführen
+                {frequencySubtextMap[frequency]}
               </span>
             </div>
             <input
