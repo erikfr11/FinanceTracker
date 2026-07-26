@@ -91,6 +91,8 @@ public class FixedCostService : IFixedCostService
         {
             string currentKey;
             bool isDue;
+            var daysInMonth = DateTime.DaysInMonth(today.Year, today.Month);
+            var targetDueDay = Math.Min(fc.DueDayOfMonth, daysInMonth);
 
             switch (fc.Frequency)
             {
@@ -104,32 +106,30 @@ public class FixedCostService : IFixedCostService
                 case FixedCostFrequency.Quarterly:
                     var quarter = (today.Month - 1) / 3 + 1;
                     currentKey = $"Q-{today.Year}-Q{quarter}";
-                    isDue = today.Day >= fc.DueDayOfMonth;
+                    isDue = today.Day >= targetDueDay;
                     break;
 
                 case FixedCostFrequency.SemiAnnually:
                     var halfYear = (today.Month - 1) / 6 + 1;
                     currentKey = $"H-{today.Year}-H{halfYear}";
-                    isDue = today.Day >= fc.DueDayOfMonth;
+                    isDue = today.Day >= targetDueDay;
                     break;
 
                 case FixedCostFrequency.Yearly:
                     currentKey = $"Y-{today.Year}";
-                    isDue = today.Day >= fc.DueDayOfMonth;
+                    isDue = today.Day >= targetDueDay;
                     break;
 
                 case FixedCostFrequency.Monthly:
                 default:
                     currentKey = $"{today.Year}-{today.Month:D2}";
-                    isDue = today.Day >= fc.DueDayOfMonth;
+                    isDue = today.Day >= targetDueDay;
                     break;
             }
 
             if (isDue && fc.LastGeneratedYearMonth != currentKey)
             {
-                var daysInMonth = DateTime.DaysInMonth(today.Year, today.Month);
-                var dueDay = Math.Min(fc.DueDayOfMonth, daysInMonth);
-                var txDate = new DateTime(today.Year, today.Month, dueDay, 0, 0, 0, DateTimeKind.Utc);
+                var txDate = new DateTime(today.Year, today.Month, targetDueDay, 0, 0, 0, DateTimeKind.Utc);
 
                 var noteText = string.IsNullOrWhiteSpace(fc.Note) ? "Fixkosten" : fc.Note;
                 var transaction = _modelFactory.CreateTransaction(fc.Amount, txDate, fc.CategoryId, fc.UserId, noteText);

@@ -13,6 +13,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from 'recharts';
 import {
   Plus,
@@ -52,7 +53,14 @@ export default function Dashboard() {
     backgroundColor: isDark ? '#0f172a' : '#ffffff',
     border: isDark ? '1px solid #1e293b' : '1px solid #e2e8f0',
     borderRadius: '12px',
-    color: isDark ? '#e2e8f0' : '#0f172a',
+    color: isDark ? '#f8fafc' : '#0f172a',
+    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+  };
+  const itemStyle = {
+    color: isDark ? '#f8fafc' : '#0f172a',
+  };
+  const labelStyle = {
+    color: isDark ? '#f8fafc' : '#0f172a',
   };
 
   const {
@@ -155,6 +163,18 @@ export default function Dashboard() {
       .reduce((sum, t) => sum + t.amount, 0);
   }, [transactions]);
 
+  const fixedExpensesTotal = useMemo(() => {
+    return transactions
+      .filter((t) => t.categoryType === 'Expense' && t.categoryExpenseType === 'Fixed')
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
+
+  const variableExpensesTotal = useMemo(() => {
+    return transactions
+      .filter((t) => t.categoryType === 'Expense' && t.categoryExpenseType !== 'Fixed')
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
+
   const balance = incomeTotal - expenseTotal;
   const txCount = transactions.length;
 
@@ -177,18 +197,17 @@ export default function Dashboard() {
 
     // Daily buckets if selected timeframe is <= 35 days (e.g. single month or custom range like 10. Jun - 03. Jul)
     if (diffDays <= 35 && start && end) {
-      const dayMap = new Map<string, { name: string; Einnahmen: number; Ausgaben: number }>();
+      const dayMap = new Map<string, { name: string; Einnahmen: number; Ausgaben: number; AusgabenFix: number; AusgabenVar: number }>();
       const curr = new Date(start);
       const isSingleMonth = periodPreset === 'specificMonth';
 
       while (curr <= end) {
         const isoKey = curr.toISOString().substring(0, 10);
-        // Requirement 3: Only day number when single month is selected
         const name = isSingleMonth
           ? String(curr.getDate())
           : new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' }).format(curr);
 
-        dayMap.set(isoKey, { name, Einnahmen: 0, Ausgaben: 0 });
+        dayMap.set(isoKey, { name, Einnahmen: 0, Ausgaben: 0, AusgabenFix: 0, AusgabenVar: 0 });
         curr.setDate(curr.getDate() + 1);
       }
 
@@ -197,8 +216,16 @@ export default function Dashboard() {
           const key = t.date.substring(0, 10);
           if (dayMap.has(key)) {
             const item = dayMap.get(key)!;
-            if (t.categoryType === 'Income') item.Einnahmen += t.amount;
-            else item.Ausgaben += t.amount;
+            if (t.categoryType === 'Income') {
+              item.Einnahmen += t.amount;
+            } else {
+              item.Ausgaben += t.amount;
+              if (t.categoryExpenseType === 'Fixed') {
+                item.AusgabenFix += t.amount;
+              } else {
+                item.AusgabenVar += t.amount;
+              }
+            }
           }
         }
       });
@@ -207,7 +234,7 @@ export default function Dashboard() {
     }
 
     // Monthly buckets for longer timeframes
-    const monthMap = new Map<string, { name: string; Einnahmen: number; Ausgaben: number }>();
+    const monthMap = new Map<string, { name: string; Einnahmen: number; Ausgaben: number; AusgabenFix: number; AusgabenVar: number }>();
 
     if (start && end) {
       const curr = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -215,7 +242,7 @@ export default function Dashboard() {
       while (curr <= last) {
         const key = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}`;
         const name = new Intl.DateTimeFormat('de-DE', { month: 'short', year: '2-digit' }).format(curr);
-        monthMap.set(key, { name, Einnahmen: 0, Ausgaben: 0 });
+        monthMap.set(key, { name, Einnahmen: 0, Ausgaben: 0, AusgabenFix: 0, AusgabenVar: 0 });
         curr.setMonth(curr.getMonth() + 1);
       }
     }
@@ -228,11 +255,19 @@ export default function Dashboard() {
           const name = !isNaN(d.getTime())
             ? new Intl.DateTimeFormat('de-DE', { month: 'short', year: '2-digit' }).format(d)
             : key;
-          monthMap.set(key, { name, Einnahmen: 0, Ausgaben: 0 });
+          monthMap.set(key, { name, Einnahmen: 0, Ausgaben: 0, AusgabenFix: 0, AusgabenVar: 0 });
         }
         const item = monthMap.get(key)!;
-        if (t.categoryType === 'Income') item.Einnahmen += t.amount;
-        else item.Ausgaben += t.amount;
+        if (t.categoryType === 'Income') {
+          item.Einnahmen += t.amount;
+        } else {
+          item.Ausgaben += t.amount;
+          if (t.categoryExpenseType === 'Fixed') {
+            item.AusgabenFix += t.amount;
+          } else {
+            item.AusgabenVar += t.amount;
+          }
+        }
       }
     });
 
@@ -241,12 +276,18 @@ export default function Dashboard() {
       .map((entry) => entry[1]);
   }, [transactions, apiFilter, periodPreset]);
 
-  // Line chart data & dynamic SVG gradient offset for positive (green) vs negative (red)
+  // Line chart data & dynamic SVG gradient offset for accumulated running balance over time
   const { lineData, gradientOffset } = useMemo(() => {
-    const data = barData.map((item) => ({
-      ...item,
-      Bilanz: item.Einnahmen - item.Ausgaben,
-    }));
+    let runningBalance = 0;
+    const data = barData.map((item) => {
+      const netPeriod = item.Einnahmen - item.Ausgaben;
+      runningBalance += netPeriod;
+      return {
+        ...item,
+        PeriodenBilanz: netPeriod,
+        Bilanz: runningBalance,
+      };
+    });
 
     const values = data.map((d) => d.Bilanz);
     const minVal = Math.min(...values, 0);
@@ -376,6 +417,26 @@ export default function Dashboard() {
             <KpiCard title="Transaktionen" value={String(txCount)} icon={<Receipt className="h-5 w-5" />} color="yellow" />
           </div>
 
+          {/* Expense Subtype Breakdown Banner */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-dark-900 border border-dark-800 rounded-2xl px-5 py-3 text-xs shadow-lg">
+            <div className="flex items-center gap-2 text-dark-300 font-medium">
+              <Receipt className="h-4 w-4 text-primary-400" />
+              <span>Ausgaben-Aufschlüsselung ({timeframeLabel}):</span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 bg-dark-800/80 border border-dark-700/80 px-3 py-1.5 rounded-xl">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
+                <span className="text-dark-300 font-medium">📌 Fixkosten:</span>
+                <span className="font-bold text-red-400">{fmt(fixedExpensesTotal)}</span>
+              </div>
+              <div className="flex items-center gap-2 bg-dark-800/80 border border-dark-700/80 px-3 py-1.5 rounded-xl">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                <span className="text-dark-300 font-medium">🛒 Flexible Ausgaben:</span>
+                <span className="font-bold text-red-300">{fmt(variableExpensesTotal)}</span>
+              </div>
+            </div>
+          </div>
+
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Toggleable Main Chart (Bar Chart vs. Net Balance Line Chart) */}
@@ -384,7 +445,7 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold text-white">
-                      {chartType === 'bar' ? 'Einnahmen vs. Ausgaben' : 'Monatsbilanz-Verlauf'}
+                      {chartType === 'bar' ? 'Einnahmen vs. Ausgaben' : 'Akkumulierter Bilanzverlauf'}
                     </h3>
                     {timeframeLabel && (
                       <span className="px-2.5 py-0.5 rounded-lg bg-dark-800 border border-dark-700 text-xs text-primary-400 font-semibold">
@@ -394,8 +455,8 @@ export default function Dashboard() {
                   </div>
                   <p className="text-xs text-dark-400 mt-0.5">
                     {chartType === 'bar'
-                      ? 'Vergleich aller Einnahmen und Ausgaben im gewählten Zeitraum'
-                      : 'Nettobilanz-Verlauf (Grün = Positiv, Rot = Negativ)'}
+                      ? 'Vergleich aller Einnahmen und Ausgaben (Fixkosten & Flexible Ausgaben rot gestapelt)'
+                      : 'Kumulierter Nettobilanz-Verlauf im Zeitverlauf (Grün = Positiv, Rot = Negativ)'}
                   </p>
                 </div>
 
@@ -417,7 +478,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => setChartType('line')}
-                    title="Liniendiagramm (Monatsbilanz)"
+                    title="Akkumuliertes Liniendiagramm (Bilanz-Verlauf)"
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       chartType === 'line'
                         ? 'bg-primary-600 text-white shadow'
@@ -444,18 +505,59 @@ export default function Dashboard() {
                     <YAxis tick={{ fill: axisTextColor, fontSize: 12 }} />
                     <Tooltip
                       cursor={false}
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number) => fmt(value)}
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload || !payload.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div className="p-3 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl text-xs space-y-1.5 min-w-[200px]">
+                            <p className="font-bold text-white border-b border-dark-700 pb-1">{label}</p>
+                            <div className="flex items-center justify-between text-emerald-400 font-medium">
+                              <span>💰 Einnahmen:</span>
+                              <span>{fmt(d.Einnahmen)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-red-400 font-semibold pt-1 border-t border-dark-800">
+                              <span>💸 Gesamtausgaben:</span>
+                              <span>{fmt(d.Ausgaben)}</span>
+                            </div>
+                            <div className="pl-2 space-y-1 text-[11px] text-dark-300">
+                              <div className="flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-red-600 inline-block" />
+                                  Davon Fixkosten:
+                                </span>
+                                <span className="text-white font-mono">{fmt(d.AusgabenFix)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                                  Davon Flexibel:
+                                </span>
+                                <span className="text-white font-mono">{fmt(d.AusgabenVar)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }}
                     />
                     <Bar
                       dataKey="Einnahmen"
+                      name="Einnahmen"
                       fill="#10b981"
                       radius={[6, 6, 0, 0]}
                       activeBar={{ fillOpacity: 0.85, stroke: isDark ? '#ffffff' : '#0f172a', strokeWidth: 1.5 }}
                     />
                     <Bar
-                      dataKey="Ausgaben"
-                      fill="#ef4444"
+                      dataKey="AusgabenFix"
+                      name="Fixkosten"
+                      stackId="ausgaben"
+                      fill="#dc2626"
+                      activeBar={{ fillOpacity: 0.85, stroke: isDark ? '#ffffff' : '#0f172a', strokeWidth: 1.5 }}
+                    />
+                    <Bar
+                      dataKey="AusgabenVar"
+                      name="Flexible Ausgaben"
+                      stackId="ausgaben"
+                      fill="#f87171"
                       radius={[6, 6, 0, 0]}
                       activeBar={{ fillOpacity: 0.85, stroke: isDark ? '#ffffff' : '#0f172a', strokeWidth: 1.5 }}
                     />
@@ -479,7 +581,9 @@ export default function Dashboard() {
                     <Tooltip
                       cursor={false}
                       contentStyle={tooltipStyle}
-                      formatter={(value: number) => [fmt(value), 'Monatsbilanz']}
+                      itemStyle={itemStyle}
+                      labelStyle={labelStyle}
+                      formatter={(value: number) => [fmt(value), 'Akkumulierte Bilanz']}
                     />
                     <Line
                       type="monotone"
@@ -560,18 +664,19 @@ export default function Dashboard() {
                   </span>
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
+                      cy="42%"
+                      innerRadius={50}
+                      outerRadius={75}
                       dataKey="value"
                       nameKey="name"
                       paddingAngle={3}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                      label={({ percent }) => (percent >= 0.05 ? `${(percent * 100).toFixed(0)}%` : '')}
                     >
                       {pieData.map((_, i) => {
                         const colors = pieCategoryType === 'Expense'
@@ -582,7 +687,14 @@ export default function Dashboard() {
                     </Pie>
                     <Tooltip
                       contentStyle={tooltipStyle}
+                      itemStyle={itemStyle}
+                      labelStyle={labelStyle}
                       formatter={(value: number) => fmt(value)}
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: '11px', color: axisTextColor, paddingTop: '12px' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

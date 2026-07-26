@@ -4,6 +4,7 @@ import type { CategoryDto } from '../../services/categoryService';
 import type { TransactionDto, TransactionCreateDto, TransactionUpdateDto } from '../../services/transactionService';
 import CustomSelect from '../ui/CustomSelect';
 import DatePicker from '../ui/DatePicker';
+import NoteAutocompleteInput from '../ui/NoteAutocompleteInput';
 
 interface NewTransactionModalProps {
   isOpen: boolean;
@@ -265,10 +266,9 @@ export default function NewTransactionModal({
           {/* Note */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-dark-300">Notiz / Beschreibung</label>
-            <input
-              type="text"
+            <NoteAutocompleteInput
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(val) => setNote(val)}
               className={inputClass}
               placeholder="z.B. Supermarkt Einkauf, Gehalt Juli…"
             />

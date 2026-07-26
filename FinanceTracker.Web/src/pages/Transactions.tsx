@@ -89,6 +89,8 @@ export default function Transactions() {
     }
   };
 
+  const [expenseSubtypeFilter, setExpenseSubtypeFilter] = useState<'all' | 'fixed' | 'variable'>('all');
+
   const incomes = useMemo(() => {
     return transactions.filter(t => t.categoryType === 'Income');
   }, [transactions]);
@@ -96,6 +98,32 @@ export default function Transactions() {
   const expenses = useMemo(() => {
     return transactions.filter(t => t.categoryType === 'Expense');
   }, [transactions]);
+
+  const filteredExpenses = useMemo(() => {
+    if (expenseSubtypeFilter === 'fixed') {
+      return expenses.filter((t: TransactionDto) => t.categoryExpenseType === 'Fixed');
+    }
+    if (expenseSubtypeFilter === 'variable') {
+      return expenses.filter((t: TransactionDto) => t.categoryExpenseType === 'Variable' || !t.categoryExpenseType);
+    }
+    return expenses;
+  }, [expenses, expenseSubtypeFilter]);
+
+  const incomeSum = useMemo(() => {
+    return incomes.reduce((s: number, t: TransactionDto) => s + t.amount, 0);
+  }, [incomes]);
+
+  const expenseSum = useMemo(() => {
+    return expenses.reduce((s: number, t: TransactionDto) => s + t.amount, 0);
+  }, [expenses]);
+
+  const filteredExpenseSum = useMemo(() => {
+    return filteredExpenses.reduce((s: number, t: TransactionDto) => s + t.amount, 0);
+  }, [filteredExpenses]);
+
+  const netBalance = incomeSum - expenseSum;
+
+  const fmt = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -180,7 +208,23 @@ export default function Transactions() {
       ) : (
         /* List Area */
         viewMode === 'all' ? (
-          <div className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+          <div className="bg-dark-900 border border-dark-800 rounded-2xl p-6 space-y-4">
+            {/* Total Summary Banner for Gemeinsame Liste */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-dark-800 text-xs">
+              <span className="font-semibold text-white">Gesamtsummen Übersicht:</span>
+              <div className="flex items-center gap-2 flex-wrap font-mono">
+                <div className="bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-emerald-400 font-bold">
+                  💰 Einnahmen: +{fmt(incomeSum)}
+                </div>
+                <div className="bg-red-500/10 border border-red-500/30 px-3 py-1.5 rounded-xl text-red-400 font-bold">
+                  💸 Ausgaben: -{fmt(expenseSum)}
+                </div>
+                <div className={`px-3 py-1.5 rounded-xl font-bold border ${netBalance >= 0 ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                  ⚖️ Bilanz: {fmt(netBalance)}
+                </div>
+              </div>
+            </div>
+
             <TransactionTable
               transactions={transactions}
               onEdit={handleOpenEditModal}
@@ -190,10 +234,15 @@ export default function Transactions() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-                Einnahmen
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-dark-800">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
+                  Einnahmen ({incomes.length})
+                </h3>
+                <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1 rounded-xl text-xs font-bold font-mono">
+                  Summe: +{fmt(incomeSum)}
+                </span>
+              </div>
               <TransactionTable
                 transactions={incomes}
                 showType={false}
@@ -202,12 +251,56 @@ export default function Transactions() {
               />
             </div>
             <div className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                Ausgaben
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-dark-800">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                    Ausgaben ({filteredExpenses.length})
+                  </h3>
+                  <span className="bg-red-500/10 border border-red-500/30 text-red-400 px-3 py-1 rounded-xl text-xs font-bold font-mono">
+                    Summe: -{fmt(filteredExpenseSum)}
+                  </span>
+                </div>
+
+                {/* Filter for Expenses: Alle, Fixkosten, Flexibel */}
+                <div className="flex items-center bg-dark-800 border border-dark-700/80 p-1 rounded-xl gap-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setExpenseSubtypeFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      expenseSubtypeFilter === 'all'
+                        ? 'bg-dark-700 text-white shadow'
+                        : 'text-dark-400 hover:text-white'
+                    }`}
+                  >
+                    Alle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpenseSubtypeFilter('fixed')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      expenseSubtypeFilter === 'fixed'
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/40 shadow'
+                        : 'text-dark-400 hover:text-white'
+                    }`}
+                  >
+                    📌 Fix
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpenseSubtypeFilter('variable')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      expenseSubtypeFilter === 'variable'
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/40 shadow'
+                        : 'text-dark-400 hover:text-white'
+                    }`}
+                  >
+                    🛒 Flexibel
+                  </button>
+                </div>
+              </div>
               <TransactionTable
-                transactions={expenses}
+                transactions={filteredExpenses}
                 showType={false}
                 onEdit={handleOpenEditModal}
                 onDelete={tx => setDeletingTransaction(tx)}
