@@ -41,8 +41,8 @@ const Navbar = () => {
   // ── Eingeloggte Navbar ────────────────────────────────────────────
   if (isAuthenticated) {
     return (
-      <nav className="fixed w-full z-50 top-0 border-b border-dark-800 bg-dark-950/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between p-4">
+      <nav className="sticky w-full z-40 top-0 h-[65px] border-b border-dark-800 bg-dark-950/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-full">
           <Link to="/dashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
               <Wallet className="h-4 w-4 text-white" />

@@ -56,6 +56,7 @@ builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactio
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ITransactionService, FinanceTracker.Api.Services.TransactionService>();
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.ICategoryService, FinanceTracker.Api.Services.CategoryService>();
 builder.Services.AddSingleton<FinanceTracker.Api.Services.Interfaces.IFixedCostService, FinanceTracker.Api.Services.FixedCostService>();
+builder.Services.AddSingleton<FinanceTracker.Api.Services.IWealthService, FinanceTracker.Api.Services.WealthService>();
 builder.Services.AddHostedService<FinanceTracker.Api.Services.FixedCostBackgroundService>();
 
 // ── CORS Configuration ──────────────────────────────────────────────

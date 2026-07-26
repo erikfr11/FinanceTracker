@@ -15,6 +15,8 @@ import FixedCosts from './pages/FixedCosts';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Users from './pages/Users';
+import WealthDashboard from './pages/WealthDashboard';
+import BankDetails from './pages/BankDetails';
 
 import ThemeSettingsPage from './pages/ThemeSettingsPage';
 
@@ -50,6 +52,8 @@ function App() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/transactions" element={<Transactions />} />
                   <Route path="/fixed-costs" element={<FixedCosts />} />
+                  <Route path="/wealth" element={<WealthDashboard />} />
+                  <Route path="/wealth/banks/:id" element={<BankDetails />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin/users" element={<Users />} />

@@ -20,6 +20,9 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<SystemThemeSettings> ThemeSettings => Set<SystemThemeSettings>();
     public DbSet<FixedCost> FixedCosts => Set<FixedCost>();
+    public DbSet<Bank> Banks => Set<Bank>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<AccountBalance> AccountBalances => Set<AccountBalance>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -182,5 +185,50 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
                 ExpenseColor = "#ef4444"
             }
         );
+
+        // ── Wealth Management Configuration ───────────────────────────
+
+        builder.Entity<Bank>(entity =>
+        {
+            entity.HasKey(b => b.Id);
+            entity.Property(b => b.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(b => b.Name).HasMaxLength(100).IsRequired();
+
+            entity.HasOne(b => b.User)
+                .WithMany()
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Account>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(a => a.Name).HasMaxLength(100).IsRequired();
+            entity.Property(a => a.Type).HasConversion<string>().HasMaxLength(30);
+
+            entity.HasOne(a => a.Bank)
+                .WithMany(b => b.Accounts)
+                .HasForeignKey(a => a.BankId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<AccountBalance>(entity =>
+        {
+            entity.HasKey(ab => ab.Id);
+            entity.Property(ab => ab.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(ab => ab.Amount).HasColumnType("numeric(18,2)");
+            entity.Property(ab => ab.Date).HasColumnType("timestamp without time zone");
+
+            entity.HasOne(ab => ab.Account)
+                .WithMany(a => a.Balances)
+                .HasForeignKey(ab => ab.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
