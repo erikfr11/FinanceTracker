@@ -153,29 +153,38 @@ export default function Dashboard() {
     loadData();
   }, [loadData]);
 
+  const kpiTransactions = useMemo(() => {
+    if (periodPreset === 'currentYear') {
+      const now = new Date();
+      const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      return transactions.filter((t) => new Date(t.date) <= endOfCurrentMonth);
+    }
+    return transactions;
+  }, [transactions, periodPreset]);
+
   const incomeTotal = useMemo(() => {
-    return transactions
+    return kpiTransactions
       .filter((t) => t.categoryType === 'Income')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions]);
+  }, [kpiTransactions]);
 
   const expenseTotal = useMemo(() => {
-    return transactions
+    return kpiTransactions
       .filter((t) => t.categoryType === 'Expense')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions]);
+  }, [kpiTransactions]);
 
   const fixedExpensesTotal = useMemo(() => {
-    return transactions
+    return kpiTransactions
       .filter((t) => t.categoryType === 'Expense' && t.categoryExpenseType === 'Fixed')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions]);
+  }, [kpiTransactions]);
 
   const variableExpensesTotal = useMemo(() => {
-    return transactions
+    return kpiTransactions
       .filter((t) => t.categoryType === 'Expense' && t.categoryExpenseType !== 'Fixed')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions]);
+  }, [kpiTransactions]);
 
   // Helper to identify investment transactions (Categories or Notes containing investment keywords)
   const isInvestmentTx = useCallback((t: TransactionDto) => {
@@ -198,19 +207,19 @@ export default function Dashboard() {
   }, []);
 
   const investmentTotal = useMemo(() => {
-    return transactions
+    return kpiTransactions
       .filter((t) => isInvestmentTx(t))
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions, isInvestmentTx]);
+  }, [kpiTransactions, isInvestmentTx]);
 
   const investmentExpensesTotal = useMemo(() => {
-    return transactions
+    return kpiTransactions
       .filter((t) => t.categoryType === 'Expense' && isInvestmentTx(t))
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions, isInvestmentTx]);
+  }, [kpiTransactions, isInvestmentTx]);
 
   const balance = incomeTotal - expenseTotal;
-  const txCount = transactions.length;
+  const txCount = kpiTransactions.length;
 
   const balanceWithoutInvestments = useMemo(() => {
     return balance + investmentExpensesTotal;

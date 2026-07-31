@@ -42,26 +42,33 @@ export default function AdvancedFilterBar({ categories }: AdvancedFilterBarProps
   const currentYearNum = new Date().getFullYear();
   const yearOptions = useMemo(() => {
     const years = [];
-    for (let y = currentYearNum; y >= currentYearNum - 5; y--) {
+    for (let y = currentYearNum + 1; y >= currentYearNum - 5; y--) {
       years.push({ value: y, label: `Jahr ${y}` });
     }
     return years;
   }, [currentYearNum]);
 
-  // Generate available months list for current and past years
-  const monthOptions = useMemo(() => {
-    const options = [];
-    const deFormatter = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
-    
-    // Last 24 months
-    const now = new Date();
-    for (let i = 0; i < 24; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = deFormatter.format(d);
-      options.push({ value: val, label: label.charAt(0).toUpperCase() + label.slice(1) });
+  // For the two separate dropdowns in 'specificMonth'
+  const specificMonthYears = useMemo(() => {
+    const years = [];
+    for (let y = currentYearNum + 1; y >= currentYearNum - 5; y--) {
+      years.push({ value: String(y), label: String(y) });
     }
-    return options;
+    return years;
+  }, [currentYearNum]);
+
+  const specificMonthMonths = useMemo(() => {
+    const months = [];
+    const deFormatter = new Intl.DateTimeFormat('de-DE', { month: 'long' });
+    for (let m = 1; m <= 12; m++) {
+      const d = new Date(2000, m - 1, 1);
+      const label = deFormatter.format(d);
+      months.push({ 
+        value: String(m).padStart(2, '0'), 
+        label: label.charAt(0).toUpperCase() + label.slice(1) 
+      });
+    }
+    return months;
   }, []);
 
   const categoryOptions = useMemo(() => {
@@ -209,11 +216,25 @@ export default function AdvancedFilterBar({ categories }: AdvancedFilterBarProps
           <span className="text-xs font-medium text-dark-300 flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-primary-400" /> Monat auswählen:
           </span>
-          <div className="w-56">
+          <div className="w-36">
             <CustomSelect<string>
-              options={monthOptions}
-              value={selectedMonth}
-              onChange={(m) => setSelectedMonth(m)}
+              options={specificMonthMonths}
+              value={selectedMonth.split('-')[1] || '01'}
+              onChange={(m) => {
+                const y = selectedMonth.split('-')[0] || String(currentYearNum);
+                setSelectedMonth(`${y}-${m}`);
+              }}
+              size="sm"
+            />
+          </div>
+          <div className="w-28">
+            <CustomSelect<string>
+              options={specificMonthYears}
+              value={selectedMonth.split('-')[0] || String(currentYearNum)}
+              onChange={(y) => {
+                const m = selectedMonth.split('-')[1] || '01';
+                setSelectedMonth(`${y}-${m}`);
+              }}
               size="sm"
             />
           </div>
