@@ -16,6 +16,7 @@ namespace FinanceTracker.Api.Services
         Task<Bank> CreateBankAsync(Bank bank);
         Task UpdateBankAsync(Bank bank);
         Task DeleteBankAsync(Guid id, Guid userId);
+        Task ReorderBanksAsync(Guid userId, List<FinanceTracker.Api.Models.DTOs.BankReorderDto> bankOrders);
 
         // Accounts
         Task<List<Account>> GetAccountsByBankAsync(Guid bankId, Guid userId);
@@ -26,7 +27,7 @@ namespace FinanceTracker.Api.Services
         Task DeleteAccountAsync(Guid id, Guid userId);
 
         // Account Balances
-        Task<AccountBalance> AddBalanceAsync(Guid accountId, Guid userId, decimal amount, DateTime date);
+        Task<AccountBalance> AddBalanceAsync(Guid accountId, Guid userId, decimal amount, DateTime date, decimal? value = null, decimal? factor = null);
         Task DeleteBalanceAsync(Guid balanceId, Guid userId);
         Task<List<AccountBalance>> GetBalancesAsync(Guid accountId, Guid userId);
     }
@@ -46,7 +47,8 @@ namespace FinanceTracker.Api.Services
             using var _context = await _contextFactory.CreateDbContextAsync();
             return await _context.Banks
                 .Where(b => b.UserId == userId)
-                .OrderBy(b => b.Name)
+                .OrderBy(b => b.SortOrder)
+                .ThenBy(b => b.Name)
                 .ToListAsync();
         }
 
@@ -64,6 +66,12 @@ namespace FinanceTracker.Api.Services
             using var _context = await _contextFactory.CreateDbContextAsync();
             bank.Id = Guid.NewGuid();
             bank.CreatedAtUtc = DateTime.UtcNow;
+            
+            var maxOrder = await _context.Banks
+                .Where(b => b.UserId == bank.UserId)
+                .MaxAsync(b => (int?)b.SortOrder) ?? 0;
+            bank.SortOrder = maxOrder + 1;
+
             _context.Banks.Add(bank);
             await _context.SaveChangesAsync();
             return bank;
@@ -88,6 +96,23 @@ namespace FinanceTracker.Api.Services
                 _context.Banks.Remove(bank);
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task ReorderBanksAsync(Guid userId, List<FinanceTracker.Api.Models.DTOs.BankReorderDto> bankOrders)
+        {
+            using var _context = await _contextFactory.CreateDbContextAsync();
+            var ids = bankOrders.Select(b => b.Id).ToList();
+            var banks = await _context.Banks.Where(b => b.UserId == userId && ids.Contains(b.Id)).ToListAsync();
+
+            foreach (var bank in banks)
+            {
+                var order = bankOrders.FirstOrDefault(b => b.Id == bank.Id);
+                if (order != null)
+                {
+                    bank.SortOrder = order.SortOrder;
+                }
+            }
+            await _context.SaveChangesAsync();
         }
 
         // --- Accounts ---
@@ -157,7 +182,7 @@ namespace FinanceTracker.Api.Services
         }
 
         // --- Balances ---
-        public async Task<AccountBalance> AddBalanceAsync(Guid accountId, Guid userId, decimal amount, DateTime date)
+        public async Task<AccountBalance> AddBalanceAsync(Guid accountId, Guid userId, decimal amount, DateTime date, decimal? value = null, decimal? factor = null)
         {
             using var _context = await _contextFactory.CreateDbContextAsync();
             var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == accountId && a.UserId == userId);
@@ -170,6 +195,8 @@ namespace FinanceTracker.Api.Services
             if (existingBalance != null)
             {
                 existingBalance.Amount = amount;
+                existingBalance.Value = value;
+                existingBalance.Factor = factor;
                 await _context.SaveChangesAsync();
                 return existingBalance;
             }
@@ -180,6 +207,8 @@ namespace FinanceTracker.Api.Services
                 AccountId = accountId,
                 Date = date.Date,
                 Amount = amount,
+                Value = value,
+                Factor = factor,
                 CreatedAtUtc = DateTime.UtcNow
             };
 

@@ -68,7 +68,8 @@ namespace FinanceTracker.Api.Controllers
                 Id = bank.Id,
                 Name = bank.Name,
                 AccountCount = bank.Accounts.Count,
-                TotalBalance = totalBalance
+                TotalBalance = totalBalance,
+                SortOrder = bank.SortOrder
             });
         }
 
@@ -95,6 +96,14 @@ namespace FinanceTracker.Api.Controllers
         {
             var userId = GetUserId();
             await _wealthService.DeleteBankAsync(id, userId);
+            return NoContent();
+        }
+
+        [HttpPut("banks/reorder")]
+        public async Task<IActionResult> ReorderBanks([FromBody] List<BankReorderDto> bankOrders)
+        {
+            var userId = GetUserId();
+            await _wealthService.ReorderBanksAsync(userId, bankOrders);
             return NoContent();
         }
 
@@ -165,8 +174,8 @@ namespace FinanceTracker.Api.Controllers
         public async Task<IActionResult> AddBalance(Guid accountId, [FromBody] AccountBalanceCreateDto dto)
         {
             var userId = GetUserId();
-            var balance = await _wealthService.AddBalanceAsync(accountId, userId, dto.Amount, dto.Date);
-            return Ok(new AccountBalanceDto { Id = balance.Id, Date = balance.Date, Amount = balance.Amount });
+            var balance = await _wealthService.AddBalanceAsync(accountId, userId, dto.Amount, dto.Date, dto.Value, dto.Factor);
+            return Ok(new AccountBalanceDto { Id = balance.Id, Date = balance.Date, Amount = balance.Amount, Value = balance.Value, Factor = balance.Factor });
         }
 
         [HttpDelete("balances/{id}")]
@@ -193,7 +202,9 @@ namespace FinanceTracker.Api.Controllers
                 {
                     Id = b.Id,
                     Date = b.Date,
-                    Amount = b.Amount
+                    Amount = b.Amount,
+                    Value = b.Value,
+                    Factor = b.Factor
                 }).ToList()
             };
         }

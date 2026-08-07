@@ -10,11 +10,18 @@ namespace FinanceTracker.Api.Models.DTOs
         public string Name { get; set; } = string.Empty;
         public int AccountCount { get; set; }
         public decimal TotalBalance { get; set; }
+        public int SortOrder { get; set; }
     }
 
     public class BankCreateUpdateDto
     {
         public string Name { get; set; } = string.Empty;
+    }
+
+    public class BankReorderDto
+    {
+        public Guid Id { get; set; }
+        public int SortOrder { get; set; }
     }
 
     public class AccountDto
@@ -47,11 +54,15 @@ namespace FinanceTracker.Api.Models.DTOs
         public Guid Id { get; set; }
         public DateTime Date { get; set; }
         public decimal Amount { get; set; }
+        public decimal? Value { get; set; }
+        public decimal? Factor { get; set; }
     }
 
     public class AccountBalanceCreateDto
     {
         public DateTime Date { get; set; }
         public decimal Amount { get; set; }
+        public decimal? Value { get; set; }
+        public decimal? Factor { get; set; }
     }
 }

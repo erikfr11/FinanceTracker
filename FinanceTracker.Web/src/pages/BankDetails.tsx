@@ -1,18 +1,23 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Landmark, ArrowLeft, Plus, LineChart as LineChartIcon, Settings2, Trash2 } from 'lucide-react';
+import { Landmark, ArrowLeft, Plus, LineChart as LineChartIcon, Settings2, Trash2, PieChart as PieChartIcon, History, X, Edit2 } from 'lucide-react';
 import { 
   fetchBank, 
   fetchAccountsByBank, 
   createAccount, 
   addAccountBalance, 
   deleteAccount,
+  deleteAccountBalance,
   type BankDto, 
-  type AccountDto 
+  type AccountDto,
+  type AccountBalanceDto
 } from '../services/wealthService';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend
 } from 'recharts';
+import CustomSelect from '../components/ui/CustomSelect';
+import DatePicker from '../components/ui/DatePicker';
 
 export default function BankDetails() {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +31,15 @@ export default function BankDetails() {
 
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [balanceAmount, setBalanceAmount] = useState('');
+  const [balanceValue, setBalanceValue] = useState('');
+  const [balanceFactor, setBalanceFactor] = useState('');
+  const [showTotal, setShowTotal] = useState(true);
   const [balanceDate, setBalanceDate] = useState(() => new Date().toISOString().substring(0, 10));
+  
+  const [historyAccountId, setHistoryAccountId] = useState<string | null>(null);
+  const historyAccount = useMemo(() => accounts.find(a => a.id === historyAccountId), [accounts, historyAccountId]);
+
+  const selectedAccount = useMemo(() => accounts.find(a => a.id === selectedAccountId), [accounts, selectedAccountId]);
 
   useEffect(() => {
     if (id) {
@@ -63,11 +76,27 @@ export default function BankDetails() {
 
   const handleAddBalance = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !selectedAccountId || !balanceAmount || !balanceDate) return;
+    if (!id || !selectedAccountId || !balanceDate) return;
     try {
-      const amount = parseFloat(balanceAmount.replace(',', '.'));
-      await addAccountBalance(selectedAccountId, { amount, date: new Date(balanceDate).toISOString() });
+      let amount = 0;
+      let valNum: number | undefined = undefined;
+      let facNum: number | undefined = undefined;
+
+      if (selectedAccount?.type === 'Other') {
+        valNum = parseFloat(balanceValue.replace(',', '.'));
+        facNum = parseFloat(balanceFactor.replace(',', '.'));
+        if (isNaN(valNum) || isNaN(facNum)) return;
+        amount = valNum * facNum;
+      } else {
+        if (!balanceAmount) return;
+        amount = parseFloat(balanceAmount.replace(',', '.'));
+        if (isNaN(amount)) return;
+      }
+
+      await addAccountBalance(selectedAccountId, { amount, date: new Date(balanceDate).toISOString(), value: valNum, factor: facNum });
       setBalanceAmount('');
+      setBalanceValue('');
+      setBalanceFactor('');
       setSelectedAccountId(null);
       loadData(id);
     } catch (e) {
@@ -85,6 +114,31 @@ export default function BankDetails() {
     }
   };
 
+  const handleDeleteBalance = async (balanceId: string) => {
+    if (!id || !window.confirm('Diesen Eintrag wirklich löschen?')) return;
+    try {
+      await deleteAccountBalance(balanceId);
+      loadData(id);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleEditBalance = (balance: AccountBalanceDto) => {
+    if (!historyAccount) return;
+    
+    setSelectedAccountId(historyAccount.id);
+    setBalanceDate(balance.date.substring(0, 10));
+    setBalanceAmount(balance.amount.toString().replace('.', ','));
+    
+    if (historyAccount.type === 'Other') {
+      setBalanceValue(balance.value != null ? balance.value.toString().replace('.', ',') : '');
+      setBalanceFactor(balance.factor != null ? balance.factor.toString().replace('.', ',') : '');
+    }
+    
+    setHistoryAccountId(null);
+  };
+
   const fmt = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
   const lineData = useMemo(() => {
@@ -100,16 +154,30 @@ export default function BankDetails() {
     
     return sortedDates.map(date => {
       let total = 0;
+      const dataPoint: any = { date };
       accounts.forEach(a => {
         const historyUpToDate = a.history.filter(h => h.date.substring(0, 10) <= date);
         if (historyUpToDate.length > 0) {
           const latest = historyUpToDate.reduce((prev, curr) => (curr.date > prev.date ? curr : prev));
           total += latest.amount;
+          dataPoint[a.id] = latest.amount;
+        } else {
+          dataPoint[a.id] = 0;
         }
       });
-      return { date, value: total };
+      dataPoint.total = total;
+      return dataPoint;
     });
   }, [accounts]);
+
+  const pieData = useMemo(() => {
+    return accounts.filter(a => a.currentBalance > 0).map(a => ({
+      name: a.name,
+      value: a.currentBalance
+    })).sort((a, b) => b.value - a.value);
+  }, [accounts]);
+
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
   const typeLabels: Record<string, string> = {
     Checking: 'Girokonto',
@@ -146,23 +214,40 @@ export default function BankDetails() {
         <div className="lg:col-span-2 space-y-6">
           {/* Chart */}
           <div className="bg-dark-900 border border-dark-800 rounded-2xl p-4 sm:p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-6">
-              <LineChartIcon className="h-5 w-5 text-primary-400" />
-              <h2 className="text-lg font-bold text-white">Vermögensverlauf</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <LineChartIcon className="h-5 w-5 text-primary-400" />
+                <h2 className="text-lg font-bold text-white">Vermögensverlauf</h2>
+              </div>
+              <div className="flex items-center">
+                <label className="text-sm font-medium text-dark-300 flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={showTotal}
+                    onChange={(e) => setShowTotal(e.target.checked)}
+                    className="rounded border-dark-600 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark-900 bg-dark-900 w-4 h-4"
+                  />
+                  Gesamtvermögen zeigen
+                </label>
+              </div>
             </div>
             <div className="h-[300px] w-full">
               {lineData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
+                  <LineChart data={lineData} margin={{ top: 10, right: 10, left: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                     <XAxis dataKey="date" stroke="#a1a1aa" fontSize={12} tickMargin={10} />
-                    <YAxis stroke="#a1a1aa" fontSize={12} tickFormatter={(v) => `€${(v/1000)}k`} domain={['dataMin', 'dataMax']} />
+                    <YAxis stroke="#a1a1aa" fontSize={12} tickFormatter={(v) => `€${(v/1000)}k`} domain={[0, 'auto']} />
                     <Tooltip 
                       formatter={(val: number) => fmt(val)}
                       labelFormatter={(label) => `Datum: ${label}`}
                       contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '0.75rem', color: '#fff' }}
                     />
-                    <Line type="stepAfter" dataKey="value" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                    <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                    {showTotal && <Line type="stepAfter" name="Gesamt" dataKey="total" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6 }} />}
+                    {accounts.map((acc, index) => (
+                      <Line key={acc.id} type="stepAfter" name={acc.name} dataKey={acc.id} stroke={COLORS[(index + 1) % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -174,7 +259,7 @@ export default function BankDetails() {
           </div>
 
           {/* Accounts List */}
-          <div className="bg-dark-900 border border-dark-800 rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-dark-900 border border-dark-800 rounded-2xl shadow-xl">
             <div className="p-4 sm:p-6 border-b border-dark-800 flex justify-between items-center">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Settings2 className="h-5 w-5 text-emerald-400" /> Konten & Depots
@@ -203,15 +288,11 @@ export default function BankDetails() {
                   </div>
                   <div className="w-full sm:w-48">
                     <label className="block text-xs font-semibold text-dark-400 uppercase tracking-wider mb-2">Typ</label>
-                    <select
+                    <CustomSelect<string>
+                      options={Object.entries(typeLabels).map(([k, v]) => ({ value: k, label: v }))}
                       value={newAccountType}
-                      onChange={e => setNewAccountType(e.target.value)}
-                      className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                    >
-                      {Object.entries(typeLabels).map(([k, v]) => (
-                        <option key={k} value={k}>{v}</option>
-                      ))}
-                    </select>
+                      onChange={val => setNewAccountType(val)}
+                    />
                   </div>
                   <button type="submit" className="w-full sm:w-auto bg-primary-600 hover:bg-primary-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-lg">
                     Speichern
@@ -241,6 +322,13 @@ export default function BankDetails() {
                           <p className="text-xl font-bold text-emerald-400">{fmt(acc.currentBalance)}</p>
                         </div>
                         <button 
+                          onClick={() => setHistoryAccountId(acc.id)}
+                          className="p-2 text-primary-400 hover:text-primary-300 bg-dark-900 border border-dark-800 rounded-lg transition-colors"
+                          title="Historie ansehen"
+                        >
+                          <History className="h-4 w-4" />
+                        </button>
+                        <button 
                           onClick={() => handleDeleteAccount(acc.id)}
                           className="p-2 text-dark-500 hover:text-red-400 bg-dark-900 border border-dark-800 rounded-lg transition-colors"
                           title="Konto löschen"
@@ -265,50 +353,172 @@ export default function BankDetails() {
             <form onSubmit={handleAddBalance} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-dark-300 mb-2 uppercase tracking-wider">Konto wählen</label>
-                <select
-                  required
+                <CustomSelect<string>
+                  options={accounts.map(a => ({ value: a.id, label: a.name }))}
                   value={selectedAccountId || ''}
-                  onChange={e => setSelectedAccountId(e.target.value)}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                >
-                  <option value="" disabled>Bitte wählen...</option>
-                  {accounts.map(a => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
+                  onChange={val => setSelectedAccountId(val)}
+                  placeholder="Bitte wählen..."
+                />
               </div>
               
               <div>
                 <label className="block text-xs font-semibold text-dark-300 mb-2 uppercase tracking-wider">Datum</label>
-                <input
-                  type="date"
-                  required
+                <DatePicker
                   value={balanceDate}
-                  onChange={e => setBalanceDate(e.target.value)}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                  onChange={val => setBalanceDate(val)}
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-dark-300 mb-2 uppercase tracking-wider">Betrag (€)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="0,00"
-                  value={balanceAmount}
-                  onChange={e => setBalanceAmount(e.target.value)}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                />
-              </div>
+              {selectedAccount?.type === 'Other' ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-dark-300 mb-2 uppercase tracking-wider">Wert</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        placeholder="0,00"
+                        value={balanceValue}
+                        onChange={e => setBalanceValue(e.target.value)}
+                        className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-dark-300 mb-2 uppercase tracking-wider">Faktor</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        placeholder="1,00"
+                        value={balanceFactor}
+                        onChange={e => setBalanceFactor(e.target.value)}
+                        className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-dark-300 mb-2 uppercase tracking-wider">Betrag (€)</label>
+                    <div className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-dark-300 cursor-not-allowed">
+                      {balanceValue && balanceFactor && !isNaN(parseFloat(balanceValue.replace(',', '.'))) && !isNaN(parseFloat(balanceFactor.replace(',', '.'))) 
+                        ? (parseFloat(balanceValue.replace(',', '.')) * parseFloat(balanceFactor.replace(',', '.'))).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                        : '0,00'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-dark-300 mb-2 uppercase tracking-wider">Betrag (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0,00"
+                    value={balanceAmount}
+                    onChange={e => setBalanceAmount(e.target.value)}
+                    className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                  />
+                </div>
+              )}
 
               <button type="submit" disabled={!selectedAccountId || accounts.length === 0} className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl text-sm font-semibold transition-all shadow-lg mt-2">
                 <Plus className="h-4 w-4" /> Stand speichern
               </button>
             </form>
           </div>
+
+          {/* Pie Chart Section */}
+          {pieData.length > 0 && (
+            <div className="bg-dark-900 border border-dark-800 rounded-2xl p-4 sm:p-6 shadow-xl">
+              <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <PieChartIcon className="h-5 w-5 text-primary-400" />
+                Aufteilung
+              </h2>
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={2} dataKey="value" stroke="none">
+                      {pieData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[(index + 1) % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(val: number) => fmt(val)} 
+                      contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '0.75rem', color: '#fff' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* History Modal */}
+      {historyAccountId && historyAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dark-900 border border-dark-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b border-dark-800 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-white">Historie</h2>
+                <p className="text-sm text-dark-400 mt-1">{historyAccount.name} ({typeLabels[historyAccount.type] || historyAccount.type})</p>
+              </div>
+              <button 
+                onClick={() => setHistoryAccountId(null)}
+                className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto p-6">
+              {historyAccount.history.length === 0 ? (
+                <div className="text-center py-12 text-dark-400">
+                  Noch keine Historien-Daten vorhanden.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {[...historyAccount.history].reverse().map(b => (
+                    <div key={b.id} className="flex items-center justify-between p-4 bg-dark-950 border border-dark-800 rounded-xl">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {new Date(b.date).toLocaleDateString('de-DE')}
+                        </p>
+                        {historyAccount.type === 'Other' && b.value != null && b.factor != null && (
+                          <p className="text-xs text-dark-400 mt-1">
+                            Wert: {b.value.toLocaleString('de-DE')} × Faktor: {b.factor.toLocaleString('de-DE')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <p className="text-emerald-400 font-bold">{fmt(b.amount)}</p>
+                        <div className="flex items-center gap-2 border-l border-dark-800 pl-4 ml-2">
+                          <button 
+                            onClick={() => handleEditBalance(b)}
+                            className="p-2 text-dark-400 hover:text-primary-400 hover:bg-dark-800 rounded-lg transition-colors"
+                            title="Eintrag bearbeiten"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteBalance(b.id)}
+                            className="p-2 text-dark-400 hover:text-red-400 hover:bg-dark-800 rounded-lg transition-colors"
+                            title="Eintrag löschen"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

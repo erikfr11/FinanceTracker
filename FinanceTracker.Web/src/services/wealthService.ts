@@ -5,6 +5,12 @@ export interface BankDto {
   name: string;
   accountCount: number;
   totalBalance: number;
+  sortOrder: number;
+}
+
+export interface BankReorderDto {
+  id: string;
+  sortOrder: number;
 }
 
 export interface BankCreateUpdateDto {
@@ -15,6 +21,8 @@ export interface AccountBalanceDto {
   id: string;
   date: string;
   amount: number;
+  value?: number;
+  factor?: number;
 }
 
 export interface AccountDto {
@@ -42,6 +50,8 @@ export interface AccountUpdateDto {
 export interface AccountBalanceCreateDto {
   date: string;
   amount: number;
+  value?: number;
+  factor?: number;
 }
 
 export const fetchBanks = async (): Promise<BankDto[]> => {
@@ -78,6 +88,15 @@ export const deleteBank = async (id: string): Promise<void> => {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete bank');
+};
+
+export const reorderBanks = async (orders: BankReorderDto[]): Promise<void> => {
+  const res = await fetchWithAuth('/api/wealth/banks/reorder', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(orders),
+  });
+  if (!res.ok) throw new Error('Failed to reorder banks');
 };
 
 export const fetchAllAccounts = async (): Promise<AccountDto[]> => {

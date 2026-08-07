@@ -8,6 +8,8 @@ namespace FinanceTracker.Api.Models
         public Guid AccountId { get; set; }
         public DateTime Date { get; set; }
         public decimal Amount { get; set; }
+        public decimal? Value { get; set; }
+        public decimal? Factor { get; set; }
         
         public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
